@@ -17,6 +17,8 @@ import hashlib
 import json
 import datetime as _dt
 import logging
+import socket
+import struct
 
 import requests
 
@@ -87,7 +89,90 @@ def _add_discord_reactions(webhook_url: str, message_id: str):
             logger.warning("Discord reaction failed: %s", exc)
 
 
+def _mc_player_count(host: str, port: int = 25565, timeout: float = 3.0) -> dict:
+    """Ping a Minecraft Java server and return {"online": int, "max": int, "reachable": bool}.
+
+    Uses the 1.7+ Server List Ping protocol (a lightweight handshake + status request).
+    Falls back to {"online": 0, "max": 0, "reachable": False} on any error.
+    """
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            def _pack_varint(val: int) -> bytes:
+                buf = b""
+                while True:
+                    part = val & 0x7F
+                    val >>= 7
+                    if val:
+                        buf += bytes([part | 0x80])
+                    else:
+                        buf += bytes([part])
+                        break
+                return buf
+
+            def _read_varint(s) -> int:
+                num = 0
+                shift = 0
+                while True:
+                    b = s.recv(1)
+                    if not b:
+                        raise OSError("socket closed")
+                    byte = b[0]
+                    num |= (byte & 0x7F) << shift
+                    if not (byte & 0x80):
+                        return num
+                    shift += 7
+
+            host_enc = host.encode("utf-8")
+            # Handshake packet (id=0x00): protocol=-1 (unset), host, port, next=1 (status)
+            handshake = (
+                b"\x00"
+                + _pack_varint(0)         # protocol version (any)
+                + _pack_varint(len(host_enc))
+                + host_enc
+                + struct.pack(">H", port)
+                + b"\x01"                 # next state: status
+            )
+            sock.sendall(_pack_varint(len(handshake)) + handshake)
+            # Status request packet (id=0x00, empty payload)
+            sock.sendall(b"\x01\x00")
+
+            # Read the response length + packet
+            _read_varint(sock)   # packet length (ignore)
+            _read_varint(sock)   # packet id  (0x00)
+            json_len = _read_varint(sock)
+
+            data = b""
+            while len(data) < json_len:
+                chunk = sock.recv(json_len - len(data))
+                if not chunk:
+                    break
+                data += chunk
+
+            status = json.loads(data.decode("utf-8"))
+            players = status.get("players", {})
+            return {
+                "online": players.get("online", 0),
+                "max": players.get("max", 0),
+                "reachable": True,
+            }
+    except Exception as exc:
+        logger.debug("MC ping failed for %s:%s – %s", host, port, exc)
+        return {"online": 0, "max": 0, "reachable": False}
+
+
 # ── public pages ──────────────────────────────────────────────────────────
+
+@action("api/player-count")
+def api_player_count():
+    """Return live player count as JSON. Called by the front-end every 60 s."""
+    response.headers["Content-Type"] = "application/json"
+    response.headers["Cache-Control"] = "no-store"
+
+    host = settings.SERVER_IP
+    port = getattr(settings, "SERVER_PORT", 25565)
+    result = _mc_player_count(host, port)
+    return json.dumps(result)
+
 
 @action("index")
 @action.uses("index.html", db, session, T)
