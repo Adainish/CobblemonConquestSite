@@ -140,7 +140,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
     isolation: isolate;
 }
 
-.hero-bg {
+.hero > .hero-bg {
     position: absolute;
     inset: 0;
     background-color: transparent;
