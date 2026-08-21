@@ -189,13 +189,13 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
 }
 
 .hero-home { --hero-image: url("../img/hero-home.png"); }
-.hero-modpack { --hero-image: url("../img/hero-modpack.svg"); }
-.hero-voting { --hero-image: url("../img/hero-voting.svg"); }
-.hero-roadmap { --hero-image: url("../img/hero-roadmap.svg"); }
-.hero-appeals { --hero-image: url("../img/hero-appeals.svg"); }
-.hero-appeal-form { --hero-image: url("../img/hero-appeal-form.svg"); }
-.hero-apply { --hero-image: url("../img/hero-apply.svg"); }
-.hero-apply-form { --hero-image: url("../img/hero-apply-form.svg"); }
+.hero-modpack { --hero-image: url("../img/hero-modpack.png"); }
+.hero-voting { --hero-image: url("../img/hero-voting.png"); }
+.hero-roadmap { --hero-image: url("../img/hero-roadmap.png"); }
+.hero-appeals { --hero-image: url("../img/hero-appeals.png"); }
+.hero-appeal-form { --hero-image: url("../img/hero-appeal-form.png"); }
+.hero-apply { --hero-image: url("../img/hero-apply.png"); }
+.hero-apply-form { --hero-image: url("../img/hero-apply-form.png"); }
 
 .hero-kamon {
     font-size: 4rem;
