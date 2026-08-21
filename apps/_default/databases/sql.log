@@ -1,0 +1,43 @@
+timestamp: 2026-08-21T10:42:47.469708
+CREATE TABLE "roadmap_item"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "title" CHAR(512),
+    "description" TEXT,
+    "status" CHAR(512),
+    "sort_order" INTEGER,
+    "created_on" TIMESTAMP
+);
+success!
+timestamp: 2026-08-21T10:42:47.472364
+CREATE TABLE "appeal"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "appeal_type" CHAR(512),
+    "minecraft_username" CHAR(512),
+    "discord_username" CHAR(512),
+    "reason" TEXT,
+    "punishment_reason" TEXT,
+    "why_unban" TEXT,
+    "status" CHAR(512),
+    "discord_message_id" CHAR(512),
+    "submitted_on" TIMESTAMP,
+    "ip_hash" CHAR(512)
+);
+success!
+timestamp: 2026-08-21T10:42:47.474450
+CREATE TABLE "staff_application"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "role" CHAR(512),
+    "minecraft_username" CHAR(512),
+    "discord_username" CHAR(512),
+    "age" INTEGER,
+    "timezone" CHAR(512),
+    "hours_per_week" INTEGER,
+    "why_apply" TEXT,
+    "prior_experience" TEXT,
+    "anything_else" TEXT,
+    "status" CHAR(512),
+    "discord_message_id" CHAR(512),
+    "submitted_on" TIMESTAMP,
+    "ip_hash" CHAR(512)
+);
+success!
