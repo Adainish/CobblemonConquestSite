@@ -229,7 +229,7 @@ def appeals():
 @action("appeals/<appeal_type>", method=["GET", "POST"])
 @action.uses("appeal_form.html", db, session, T)
 def appeal_form(appeal_type="ban"):
-    if appeal_type not in ("ban", "mute"):
+    if appeal_type not in ("ban", "mute", "discord"):
         redirect(URL("appeals"))
 
     flash = ""
@@ -250,7 +250,8 @@ def appeal_form(appeal_type="ban"):
         if not discord_username:
             errors["discord_username"] = "Discord username is required."
         if not why_unban:
-            errors["why_unban"] = "Please explain why you should be un-" + appeal_type + "ned."
+            suffix = {"ban": "banned", "mute": "muted"}.get(appeal_type, "punished")
+            errors["why_unban"] = "Please explain why you should be un-" + suffix + "."
 
         if not errors:
             ip_hash = _hash_ip(request.environ.get("REMOTE_ADDR", "unknown"))
@@ -282,7 +283,8 @@ def appeal_form(appeal_type="ban"):
                 db.commit()
 
                 # Notify Discord
-                colour = 0xE74C3C if appeal_type == "ban" else 0xF39C12
+                colour = 0xE74C3C if appeal_type == "ban" else (0x7289DA if appeal_type == "discord" else 0xF39C12)
+                unpunished = {"ban": "Unbanned", "mute": "Unmuted"}.get(appeal_type, "Un-punished")
                 embed = {
                     "title": f"New {appeal_type.title()} Appeal #{appeal_id}",
                     "color": colour,
@@ -290,7 +292,7 @@ def appeal_form(appeal_type="ban"):
                         {"name": "Minecraft Username", "value": minecraft_username, "inline": True},
                         {"name": "Discord Username", "value": discord_username, "inline": True},
                         {"name": "Punishment Reason", "value": punishment_reason or "Not provided", "inline": False},
-                        {"name": "Why They Should Be Un" + appeal_type + "ned", "value": why_unban, "inline": False},
+                        {"name": "Why They Should Be " + unpunished, "value": why_unban, "inline": False},
                     ],
                     "footer": {"text": f"Appeal ID {appeal_id} • React ✅ to approve, ❌ to deny"},
                     "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
