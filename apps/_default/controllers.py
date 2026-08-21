@@ -89,6 +89,24 @@ def _add_discord_reactions(webhook_url: str, message_id: str):
             logger.warning("Discord reaction failed: %s", exc)
 
 
+def _resolve_mc_host(host: str, port: int) -> tuple[str, int]:
+    """Resolve a Minecraft SRV record for *host* and return (target_host, target_port).
+
+    Minecraft clients look up ``_minecraft._tcp.<host>`` before connecting.
+    If no SRV record exists the original host/port are returned unchanged.
+    """
+    try:
+        import dns.resolver  # dnspython
+        answers = dns.resolver.resolve(f"_minecraft._tcp.{host}", "SRV")
+        record = min(answers, key=lambda r: (r.priority, r.weight))
+        srv_host = str(record.target).rstrip(".")
+        srv_port = int(record.port)
+        logger.debug("MC SRV %s → %s:%s", host, srv_host, srv_port)
+        return srv_host, srv_port
+    except Exception:
+        return host, port
+
+
 def _mc_player_count(host: str, port: int = 25565, timeout: float = 3.0) -> dict:
     """Ping a Minecraft Java server and return {"online": int, "max": int, "reachable": bool}.
 
@@ -96,6 +114,7 @@ def _mc_player_count(host: str, port: int = 25565, timeout: float = 3.0) -> dict
     Falls back to {"online": 0, "max": 0, "reachable": False} on any error.
     """
     try:
+        host, port = _resolve_mc_host(host, port)
         with socket.create_connection((host, port), timeout=timeout) as sock:
             def _pack_varint(val: int) -> bytes:
                 buf = b""
