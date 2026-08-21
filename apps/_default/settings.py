@@ -44,6 +44,7 @@ DEFAULT_LOGIN_ENABLED = False
 SERVER_IP = "play.cobblemonconquest.com"
 STORE_URL = "https://store.cobblemonconquest.com"
 MODPACK_URL = "https://www.curseforge.com/minecraft/modpacks/cobblemon-conquest"
+MODRINTH_URL = "https://modrinth.com/modpack/cobblemon-conquest"
 DISCORD_INVITE_URL = "https://discord.cobblemonconquest.com"
 
 VOTE_SITES = [

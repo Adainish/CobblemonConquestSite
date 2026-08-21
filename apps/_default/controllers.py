@@ -36,6 +36,7 @@ def _ctx(**extra) -> dict:
         discord_url=settings.DISCORD_INVITE_URL,
         server_ip=settings.SERVER_IP,
         modpack_url=settings.MODPACK_URL,
+        modrinth_url=settings.MODRINTH_URL,
     )
     base.update(extra)
     return base
