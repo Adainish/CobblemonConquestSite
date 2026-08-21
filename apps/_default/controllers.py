@@ -89,7 +89,6 @@ def _add_discord_reactions(webhook_url: str, message_id: str):
 # ── public pages ──────────────────────────────────────────────────────────
 
 @action("index")
-@action("")
 @action.uses("index.html", db, session, T)
 def index():
     return _ctx()
