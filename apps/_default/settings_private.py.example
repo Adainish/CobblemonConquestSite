@@ -1,0 +1,18 @@
+"""
+Private / secret settings for Cobblemon Conquest.
+Copy this file to settings_private.py and fill in your values.
+settings_private.py is git-ignored.
+"""
+
+# A long random string used to sign session cookies.
+SESSION_SECRET_KEY = "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
+
+# Discord webhook for ban/mute appeals channel
+DISCORD_APPEALS_WEBHOOK = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
+
+# Discord webhook for staff applications channel
+DISCORD_STAFFAPPS_WEBHOOK = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
+
+# Override server/store URLs if needed
+# SERVER_IP = "play.cobblemonconquest.com"
+# STORE_URL  = "https://store.cobblemonconquest.com"

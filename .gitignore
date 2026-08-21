@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# py4web runtime
+apps/conquest/databases/
+apps/conquest/uploads/
+apps/conquest/settings_private.py
+password.txt
+*.db
+*.sqlite
+
+# Tests
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+/apps/_default/databases/
+/apps/.service/

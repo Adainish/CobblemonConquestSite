@@ -1,0 +1,6 @@
+py4web>=1.20230828.1
+requests>=2.31.0
+dnspython>=2.4.0
+
+# Development / testing
+pytest>=7.0

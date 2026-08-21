@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>[[block page_title]]Cobblemon Conquest[[end]] | Cobblemon Conquest</title>
+
+  <!-- SEO -->
+  <meta name="description"
+        content="[[block page_description]]Cobblemon Conquest – a feudal Japan Cobblemon Minecraft server on Fabric. Join the adventure, collect Pokémon, and conquer the realm![[end]]" />
+  <meta name="keywords"
+        content="Cobblemon, Conquest, Minecraft, Fabric, Pokémon, server, feudal Japan, modpack" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:title"       content="Cobblemon Conquest" />
+  <meta property="og:description" content="A feudal Japan Cobblemon Minecraft server on Fabric." />
+  <meta property="og:image"       content="[[=URL('static', 'img/og-banner.png')]]" />
+  <meta property="og:url"         content="https://cobblemonconquest.com" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="Cobblemon Conquest" />
+  <meta name="twitter:description" content="A feudal Japan Cobblemon Minecraft server on Fabric." />
+  <meta name="twitter:image"       content="[[=URL('static', 'img/og-banner.png')]]" />
+
+  <!-- Schema.org structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Cobblemon Conquest",
+    "description": "A feudal Japan themed Cobblemon Minecraft server on Fabric.",
+    "url": "https://cobblemonconquest.com",
+    "gameServer": {
+      "@type": "GameServer",
+      "name": "Cobblemon Conquest",
+      "serverStatus": "OnlineFull"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="[[=URL('static','css/style.css')]]" />
+  <link rel="icon" href="[[=URL('static','img/favicon.png')]]" type="image/png" />
+</head>
+<body>
+
+<div class="torii-stripe"></div>
+
+<nav class="nav" aria-label="Main navigation">
+  <a class="nav-brand" href="[[=URL('index')]]">
+    <span class="brand-icon">⛩️</span>
+    Cobblemon Conquest
+  </a>
+  <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <ul class="nav-links" role="list">
+    <li><a href="[[=URL('index')]]">Home</a></li>
+    <li><a href="[[=URL('modpack')]]">Modpack</a></li>
+    <li><a href="[[=URL('voting')]]">Vote</a></li>
+    <li><a href="[[=URL('roadmap')]]">Roadmap</a></li>
+    <li><a href="[[=URL('appeals')]]">Appeals</a></li>
+    <li><a href="[[=URL('apply')]]">Staff Apply</a></li>
+    <li><a href="[[=store_url]]" target="_blank" rel="noopener">Store</a></li>
+  </ul>
+  <a class="nav-cta" href="[[=discord_url]]" target="_blank" rel="noopener">Discord</a>
+</nav>
+
+[[include]]
+
+<div class="kamon-band" aria-hidden="true">⛩ ⛩ ⛩ ⛩ ⛩ ⛩ ⛩ ⛩</div>
+
+<footer>
+  <p>
+    &copy; [[=__import__('datetime').datetime.utcnow().year]] Cobblemon Conquest &nbsp;·&nbsp;
+    <a href="[[=URL('appeals')]]">Appeals</a> &nbsp;·&nbsp;
+    <a href="[[=URL('apply')]]">Staff Apply</a> &nbsp;·&nbsp;
+    <a href="[[=store_url]]" target="_blank" rel="noopener">Store</a> &nbsp;·&nbsp;
+    <a href="[[=discord_url]]" target="_blank" rel="noopener">Discord</a>
+  </p>
+  <p style="margin-top:.5rem;opacity:.5;font-size:.75rem;">
+    Not affiliated with Mojang Studios or The Pokémon Company. Cobblemon is a community mod.
+  </p>
+</footer>
+
+<div id="copy-toast" aria-live="polite"></div>
+<script src="[[=URL('static','js/main.js')]]"></script>
+</body>
+</html>

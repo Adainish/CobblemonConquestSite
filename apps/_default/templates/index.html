@@ -1,0 +1,86 @@
+[[extend 'layout.html']]
+[[block page_title]]Cobblemon Conquest[[end]]
+[[block page_description]]Join Cobblemon Conquest – a feudal Japan Cobblemon Minecraft server on Fabric. Collect Pokémon, forge your clan, and conquer the realm![[end]]
+
+<main>
+  <!-- Hero -->
+  <section class="hero hero-home">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">⛩️</div>
+    <h1 class="hero-title">Cobblemon Conquest</h1>
+    <p class="hero-subtitle">A Feudal Japan Cobblemon Adventure on Fabric</p>
+
+    <div id="server-ip" class="hero-ip" data-ip="[[=server_ip]]" role="button"
+         tabindex="0" aria-label="Click to copy server address [[=server_ip]]">
+      <span class="hero-ip-address">[[=server_ip]]</span>
+      <span class="copy-hint">click to copy</span>
+      <div class="server-status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="player-count">Checking…</span>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <a class="btn btn-gold" href="[[=modpack_url]]" target="_blank" rel="noopener">
+        📦 Get the Modpack
+      </a>
+      <a class="btn btn-crimson" href="[[=discord_url]]" target="_blank" rel="noopener">
+        💬 Join Discord
+      </a>
+      <a class="btn btn-ghost" href="[[=store_url]]" target="_blank" rel="noopener">
+        🛒 Store
+      </a>
+    </div>
+  </section>
+
+  <!-- Feature cards -->
+  <section class="section" aria-labelledby="features-heading">
+    <h2 class="section-title" id="features-heading">Why Conquest?</h2>
+    <p class="section-sub">Forge your destiny in a world where Pokémon roam feudal Japan</p>
+    <hr class="divider" />
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">🏯</div>
+        <h3 class="card-title">Feudal Japan Theme</h3>
+        <p class="card-body">Custom textures, structures, and lore inspired by samurai clans, ninja villages, and ancient shrines – all within the Cobblemon universe.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">🔴</div>
+        <h3 class="card-title">Full Cobblemon Experience</h3>
+        <p class="card-body">Catch, train, and battle hundreds of Pokémon using the Cobblemon mod on Fabric. All the classic gameplay you love in a rich new world.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">📦</div>
+        <h3 class="card-title">Curated Modpack</h3>
+        <p class="card-body">Our hand-crafted modpack brings together the best Fabric mods for performance, quality of life, and immersion. One-click install via CurseForge.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">👥</div>
+        <h3 class="card-title">Vibrant Community</h3>
+        <p class="card-body">Join a growing Discord of trainers, adventurers, and builders. Events, tournaments, and community builds are always in progress.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">🗺️</div>
+        <h3 class="card-title">Active Development</h3>
+        <p class="card-body">Check our public <a href="[[=URL('roadmap')]]">roadmap</a> to see what's coming next. We ship updates regularly based on community feedback.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">⚖️</div>
+        <h3 class="card-title">Fair Play</h3>
+        <p class="card-body">Transparent moderation with a public <a href="[[=URL('appeals')]]">appeals system</a> so every player gets a fair hearing.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick links banner -->
+  <section class="section" aria-labelledby="quicklinks-heading" style="padding-top:0">
+    <hr class="divider" style="width:100%;margin-bottom:2rem;" />
+    <h2 class="section-title" id="quicklinks-heading" style="margin-bottom:1.5rem;">Get Started</h2>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+      <a class="btn btn-gold" href="[[=URL('modpack')]]">📦 Modpack Guide</a>
+      <a class="btn btn-jade" href="[[=URL('voting')]]">🗳️ Vote for Us</a>
+      <a class="btn btn-ghost" href="[[=URL('roadmap')]]">📋 View Roadmap</a>
+      <a class="btn btn-ghost" href="[[=URL('apply')]]">🎖️ Join the Staff</a>
+    </div>
+  </section>
+</main>

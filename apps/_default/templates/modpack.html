@@ -1,0 +1,75 @@
+[[extend 'layout.html']]
+[[block page_title]]Modpack[[end]]
+[[block page_description]]Download and install the Cobblemon Conquest modpack on CurseForge or Modrinth. One-click Fabric modpack for an immersive feudal Japan Cobblemon experience.[[end]]
+
+<main>
+  <section class="hero hero-modpack" style="padding:4rem 2rem 3rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">📦</div>
+    <h1 class="hero-title" style="font-size:clamp(1.8rem,4vw,3rem);">The Conquest Modpack</h1>
+    <p class="hero-subtitle">Everything you need, one click away</p>
+    <a class="btn btn-gold" href="[[=modpack_url]]" target="_blank" rel="noopener" style="margin-top:1.5rem;">
+      Download on CurseForge ↗
+    </a>
+    <a class="btn btn-crimson" href="[[=modrinth_url]]" target="_blank" rel="noopener" style="margin-top:1rem;">
+      Download on Modrinth ↗
+    </a>
+  </section>
+
+  <section class="section" aria-labelledby="modpack-how-heading">
+    <h2 class="section-title" id="modpack-how-heading">How to Install</h2>
+    <hr class="divider" />
+
+    <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">1️⃣</div>
+        <h3 class="card-title">Pick Your Launcher</h3>
+        <p class="card-body">Download the free <a href="https://www.curseforge.com/download/app" target="_blank" rel="noopener">CurseForge app</a> or <a href="https://modrinth.com/app" target="_blank" rel="noopener">Modrinth App</a> for Windows, macOS, or Linux.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">2️⃣</div>
+        <h3 class="card-title">Search for Conquest</h3>
+        <p class="card-body">Open the Minecraft section in your launcher, search <strong>Cobblemon Conquest</strong>, and click Install.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">3️⃣</div>
+        <h3 class="card-title">Launch &amp; Connect</h3>
+        <p class="card-body">Hit Play, add our server IP <strong>[[=server_ip]]</strong>, and you're in!</p>
+        <div class="server-status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="player-count">Checking…</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0" aria-labelledby="modpack-features-heading">
+    <h2 class="section-title" id="modpack-features-heading">What's Included</h2>
+    <hr class="divider" />
+    <ul class="feature-list" role="list">
+      <li>🔴 Cobblemon (latest stable)</li>
+      <li>⚡ Sodium + Iris (performance)</li>
+      <li>🗺️ Xaero's Minimap</li>
+      <li>🌿 Terralith world gen</li>
+      <li>🏯 Feudal structures mod</li>
+      <li>🎒 Inventory management</li>
+      <li>🌙 Ambient sounds</li>
+      <li>🔧 Essential (cosmetics)</li>
+      <li>🛡️ Armour stand editor</li>
+      <li>📖 Custom Cobblemon lore</li>
+    </ul>
+    <p style="text-align:center;margin-top:2rem;color:rgba(245,239,224,.6);font-size:.9rem;">
+      Full mod list available on the
+      <a href="[[=modpack_url]]" target="_blank" rel="noopener">CurseForge page</a>
+      or <a href="[[=modrinth_url]]" target="_blank" rel="noopener">Modrinth page</a>.
+      Always use the recommended version for the server.
+    </p>
+  </section>
+
+  <section class="section" style="padding-top:0;text-align:center;">
+    <p style="color:rgba(245,239,224,.7);margin-bottom:1.5rem;">
+      Need help? Ask in our Discord!
+    </p>
+    <a class="btn btn-crimson" href="[[=discord_url]]" target="_blank" rel="noopener">💬 Join Discord</a>
+  </section>
+</main>

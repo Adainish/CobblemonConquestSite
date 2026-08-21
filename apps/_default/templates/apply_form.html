@@ -1,0 +1,102 @@
+[[extend 'layout.html']]
+[[block page_title]][[=role]] Application[[end]]
+[[block page_description]]Apply for the [[=role]] position on Cobblemon Conquest.[[end]]
+
+<main>
+  <section class="hero hero-apply-form" style="padding:3rem 2rem 2rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">⚔️</div>
+    <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.6rem);">[[=role]] Application</h1>
+    <p class="hero-subtitle">Answer honestly – we value quality over speed</p>
+  </section>
+
+  <section class="section" style="padding-top:1rem;">
+    [[if flash:]]
+    <div class="form-flash" role="alert">⚠️ [[=flash]]</div>
+    [[pass]]
+
+    <form class="form-card" method="POST" action="[[=URL('apply_form', role.lower())]]" novalidate>
+
+      <div class="form-group">
+        <label class="form-label" for="minecraft_username">Minecraft Username *</label>
+        <input class="form-control" type="text" id="minecraft_username" name="minecraft_username"
+               placeholder="YourMinecraftName" maxlength="64"
+               value="[[=form_data.get('minecraft_username','')]]" required />
+        [[if errors.get('minecraft_username'):]]
+        <p class="form-error" role="alert">[[=errors['minecraft_username']]]</p>
+        [[pass]]
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="discord_username">Discord Username *</label>
+        <input class="form-control" type="text" id="discord_username" name="discord_username"
+               placeholder="username or username#0000" maxlength="100"
+               value="[[=form_data.get('discord_username','')]]" required />
+        [[if errors.get('discord_username'):]]
+        <p class="form-error" role="alert">[[=errors['discord_username']]]</p>
+        [[pass]]
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label" for="age">Age *</label>
+          <input class="form-control" type="number" id="age" name="age"
+                 min="18" max="99" placeholder="18"
+                 value="[[=form_data.get('age','')]]" required />
+          [[if errors.get('age'):]]
+          <p class="form-error" role="alert">[[=errors['age']]]</p>
+          [[pass]]
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="hours_per_week">Hours Available/Week</label>
+          <input class="form-control" type="number" id="hours_per_week" name="hours_per_week"
+                 min="1" max="168" placeholder="10"
+                 value="[[=form_data.get('hours_per_week','')]]" />
+          [[if errors.get('hours_per_week'):]]
+          <p class="form-error" role="alert">[[=errors['hours_per_week']]]</p>
+          [[pass]]
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="timezone">Timezone *</label>
+        <input class="form-control" type="text" id="timezone" name="timezone"
+               placeholder="e.g. UTC+10, EST, GMT" maxlength="60"
+               value="[[=form_data.get('timezone','')]]" required />
+        [[if errors.get('timezone'):]]
+        <p class="form-error" role="alert">[[=errors['timezone']]]</p>
+        [[pass]]
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="why_apply">Why do you want to be a [[=role]]? *</label>
+        <textarea class="form-control" id="why_apply" name="why_apply" required
+                  placeholder="Tell us your motivation, what you'd bring to the team…">[[=form_data.get('why_apply','')]]</textarea>
+        [[if errors.get('why_apply'):]]
+        <p class="form-error" role="alert">[[=errors['why_apply']]]</p>
+        [[pass]]
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="prior_experience">Prior moderation / staff experience</label>
+        <textarea class="form-control" id="prior_experience" name="prior_experience"
+                  placeholder="Previous servers, Discord roles, etc. (or 'None')">[[=form_data.get('prior_experience','')]]</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="anything_else">Anything else you'd like us to know?</label>
+        <textarea class="form-control" id="anything_else" name="anything_else"
+                  placeholder="Optional – additional info, links, etc.">[[=form_data.get('anything_else','')]]</textarea>
+      </div>
+
+      <div style="margin-top:1.75rem;display:flex;gap:1rem;flex-wrap:wrap;">
+        <button class="btn btn-gold" type="submit">Submit Application</button>
+        <a class="btn btn-ghost" href="[[=URL('apply')]]">← Back</a>
+      </div>
+
+      <p style="margin-top:1rem;font-size:.8rem;color:rgba(245,239,224,.4);">
+        * Required fields. You may only have one pending application per role at a time.
+      </p>
+    </form>
+  </section>
+</main>

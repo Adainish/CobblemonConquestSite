@@ -1,0 +1,21 @@
+[[extend 'layout.html']]
+[[block page_title]]Application Submitted[[end]]
+[[block page_description]]Your [[=role]] application has been submitted to the Cobblemon Conquest staff team.[[end]]
+
+<main>
+  <section class="section">
+    <div class="success-box">
+      <div class="success-icon" aria-hidden="true">🎖️</div>
+      <h1 class="success-title">Application Submitted!</h1>
+      <p class="success-body">
+        Your application for <strong>[[=role]]</strong> has been received and shared with the leadership team.
+        We review applications regularly and will reach out via Discord with our decision.
+        Thank you for wanting to be part of the Conquest team!
+      </p>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+        <a class="btn btn-crimson" href="[[=discord_url]]" target="_blank" rel="noopener">💬 Join Discord</a>
+        <a class="btn btn-ghost" href="[[=URL('index')]]">← Home</a>
+      </div>
+    </div>
+  </section>
+</main>

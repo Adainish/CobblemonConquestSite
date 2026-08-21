@@ -1,0 +1,72 @@
+[[extend 'layout.html']]
+[[block page_title]][[=appeal_type.title()]] Appeal[[end]]
+[[block page_description]]Submit a [[=appeal_type]] appeal for Cobblemon Conquest.[[end]]
+
+<main>
+  <section class="hero hero-appeal-form" style="padding:3rem 2rem 2rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">[[="🔨" if appeal_type == "ban" else "🔇"]]</div>
+    <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.6rem);">[[=appeal_type.title()]] Appeal</h1>
+    <p class="hero-subtitle">Fill in the form below honestly and completely</p>
+  </section>
+
+  <section class="section" style="padding-top:1rem;">
+    [[if flash:]]
+    <div class="form-flash" role="alert">
+      ⚠️ [[=flash]]
+    </div>
+    [[pass]]
+
+    <form class="form-card" method="POST" action="[[=URL('appeal_form', appeal_type)]]" novalidate>
+
+      <div class="form-group">
+        <label class="form-label" for="minecraft_username">Minecraft Username *</label>
+        <input class="form-control" type="text" id="minecraft_username" name="minecraft_username"
+               placeholder="YourMinecraftName" maxlength="64"
+               value="[[=form_data.get('minecraft_username','')]]" required />
+        [[if errors.get('minecraft_username'):]]
+        <p class="form-error" role="alert">[[=errors['minecraft_username']]]</p>
+        [[pass]]      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="discord_username">Discord Username *</label>
+        <input class="form-control" type="text" id="discord_username" name="discord_username"
+               placeholder="username#0000 or username" maxlength="100"
+               value="[[=form_data.get('discord_username','')]]" required />
+        [[if errors.get('discord_username'):]]
+        <p class="form-error" role="alert">[[=errors['discord_username']]]</p>
+        [[pass]]
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="punishment_reason">What reason were you given for the [[=appeal_type]]?</label>
+        <textarea class="form-control" id="punishment_reason" name="punishment_reason"
+                  placeholder="e.g. 'Griefing' or 'Toxicity in chat'">[[=form_data.get('punishment_reason','')]]</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reason">Describe the situation in your own words</label>
+        <textarea class="form-control" id="reason" name="reason"
+                  placeholder="Tell us what happened from your perspective…">[[=form_data.get('reason','')]]</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="why_unban">Why should you be un[[=appeal_type]]ned? *</label>
+        <textarea class="form-control" id="why_unban" name="why_unban" required
+                  placeholder="Convince us you deserve another chance…">[[=form_data.get('why_unban','')]]</textarea>
+        [[if errors.get('why_unban'):]]
+        <p class="form-error" role="alert">[[=errors['why_unban']]]</p>
+        [[pass]]
+      </div>
+
+      <div style="margin-top:1.75rem;display:flex;gap:1rem;flex-wrap:wrap;">
+        <button class="btn btn-gold" type="submit">Submit Appeal</button>
+        <a class="btn btn-ghost" href="[[=URL('appeals')]]">← Back</a>
+      </div>
+
+      <p style="margin-top:1rem;font-size:.8rem;color:rgba(245,239,224,.4);">
+        * Required fields. Submitting multiple appeals for the same punishment is prevented automatically.
+      </p>
+    </form>
+  </section>
+</main>

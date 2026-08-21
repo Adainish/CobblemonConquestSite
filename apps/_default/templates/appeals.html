@@ -1,0 +1,43 @@
+[[extend 'layout.html']]
+[[block page_title]]Appeals[[end]]
+[[block page_description]]Submit a ban or mute appeal for Cobblemon Conquest. Our staff review all appeals fairly.[[end]]
+
+<main>
+  <section class="hero hero-appeals" style="padding:4rem 2rem 3rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">⚖️</div>
+    <h1 class="hero-title" style="font-size:clamp(1.8rem,4vw,3rem);">Appeals</h1>
+    <p class="hero-subtitle">Every player deserves a fair hearing</p>
+  </section>
+
+  <section class="section" aria-labelledby="appeal-choose-heading">
+    <h2 class="section-title" id="appeal-choose-heading">What would you like to appeal?</h2>
+    <hr class="divider" />
+
+    <div class="appeal-type-grid">
+      <a class="appeal-type-card" href="[[=URL('appeal_form', 'ban')]]" aria-label="Submit a ban appeal">
+        <div class="icon" aria-hidden="true">🔨</div>
+        <div class="label">Ban Appeal</div>
+        <div class="desc">You have been banned from the server and wish to contest the decision.</div>
+      </a>
+      <a class="appeal-type-card" href="[[=URL('appeal_form', 'mute')]]" aria-label="Submit a mute appeal">
+        <div class="icon" aria-hidden="true">🔇</div>
+        <div class="label">Mute Appeal</div>
+        <div class="desc">You have been muted in-game or on Discord and wish to contest the decision.</div>
+      </a>
+    </div>
+
+    <div style="margin-top:3rem;max-width:600px;margin-left:auto;margin-right:auto;
+                background:rgba(245,239,224,.04);border:1px solid rgba(201,150,12,.2);
+                border-radius:6px;padding:1.5rem;">
+      <h3 style="font-family:var(--font-display);color:var(--gold-light);margin-bottom:.75rem;">📜 Before You Appeal</h3>
+      <ul style="color:rgba(245,239,224,.75);font-size:.9rem;line-height:1.8;padding-left:1.2rem;">
+        <li>Be honest – staff can see the full history of your actions.</li>
+        <li>Only submit one appeal at a time per punishment.</li>
+        <li>Spam or abusive appeals may result in further punishment.</li>
+        <li>Appeals are reviewed within 72 hours in most cases.</li>
+        <li>You will be notified via Discord once a decision is made.</li>
+      </ul>
+    </div>
+  </section>
+</main>

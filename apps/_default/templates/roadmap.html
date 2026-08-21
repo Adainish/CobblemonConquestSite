@@ -1,0 +1,51 @@
+[[extend 'layout.html']]
+[[block page_title]]Roadmap[[end]]
+[[block page_description]]See what's planned, in progress, and completed for Cobblemon Conquest. Public development roadmap updated by the team.[[end]]
+
+<main>
+  <section class="hero hero-roadmap" style="padding:4rem 2rem 3rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">📋</div>
+    <h1 class="hero-title" style="font-size:clamp(1.8rem,4vw,3rem);">Development Roadmap</h1>
+    <p class="hero-subtitle">Our plans for the realm – transparent and community-driven</p>
+  </section>
+
+  <section class="section" aria-labelledby="roadmap-heading">
+    <h2 class="section-title" id="roadmap-heading">What's Coming</h2>
+    <hr class="divider" />
+
+    <!-- Legend -->
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-bottom:2rem;" role="list" aria-label="Status legend">
+      <span class="rm-badge badge-planned"     role="listitem">Planned</span>
+      <span class="rm-badge badge-in_progress" role="listitem">In Progress</span>
+      <span class="rm-badge badge-completed"   role="listitem">Completed</span>
+      <span class="rm-badge badge-cancelled"   role="listitem">Cancelled</span>
+    </div>
+
+    [[if items:]]
+    <ul class="roadmap-list" role="list">
+      [[for item in items:]]
+      <li class="roadmap-item">
+        <span class="rm-badge badge-[[=item.status]]">[[=item.status.replace('_',' ').title()]]</span>
+        <div class="rm-content">
+          <h3>[[=item.title]]</h3>
+          [[if item.description:]]
+          <p>[[=item.description]]</p>
+          [[pass]]
+        </div>
+      </li>
+      [[pass]]
+    </ul>
+    [[else:]]
+    <div style="text-align:center;padding:3rem;color:rgba(245,239,224,.5);">
+      <p style="font-size:1.5rem;margin-bottom:.5rem;">🗺️</p>
+      <p>The roadmap is being assembled. Check back soon!</p>
+    </div>
+    [[pass]]
+
+    <p style="text-align:center;margin-top:3rem;color:rgba(245,239,224,.5);font-size:.88rem;">
+      Have a suggestion? Drop it in our
+      <a href="[[=discord_url]]" target="_blank" rel="noopener">Discord</a> suggestions channel.
+    </p>
+  </section>
+</main>

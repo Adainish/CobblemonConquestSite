@@ -1,0 +1,58 @@
+[[extend 'layout.html']]
+[[block page_title]]Vote[[end]]
+[[block page_description]]Vote for Cobblemon Conquest on Minecraft server lists. Every vote helps us grow and rewards you in-game![[end]]
+
+<main>
+  <section class="hero hero-voting" style="padding:4rem 2rem 3rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">🗳️</div>
+    <h1 class="hero-title" style="font-size:clamp(1.8rem,4vw,3rem);">Vote for Us</h1>
+    <p class="hero-subtitle">Every vote helps the server grow and earns you in-game rewards</p>
+  </section>
+
+  <section class="section" aria-labelledby="vote-heading">
+    <h2 class="section-title" id="vote-heading">Vote Sites</h2>
+    <p class="section-sub">Votes reset daily – vote on every site each day for maximum rewards!</p>
+    <hr class="divider" />
+    <div class="vote-grid">
+      [[for site in vote_sites:]]
+      <div class="vote-card">
+        <div class="card-icon" aria-hidden="true">🗳️</div>
+        <p class="vote-card-name">[[=site['name']]]</p>
+        <a class="btn btn-gold" href="[[=site['url']]]" target="_blank" rel="noopener">
+          Vote Now ↗
+        </a>
+      </div>
+      [[pass]]
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0" aria-labelledby="vote-rewards-heading">
+    <h2 class="section-title" id="vote-rewards-heading">Vote Rewards</h2>
+    <hr class="divider" />
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">💴</div>
+        <h3 class="card-title">In-game Currency</h3>
+        <p class="card-body">Each vote awards you conquest coins, the server's economy currency.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">🎁</div>
+        <h3 class="card-title">Vote Crate Keys</h3>
+        <p class="card-body">Accumulate votes to earn crate keys with rare items and cosmetics.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">⭐</div>
+        <h3 class="card-title">Streak Bonuses</h3>
+        <p class="card-body">Vote every day to keep a streak going and multiply your rewards.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0;text-align:center;">
+    <p style="color:rgba(245,239,224,.7);margin-bottom:1.5rem;">
+      Want to support us further? Check out the store!
+    </p>
+    <a class="btn btn-gold" href="[[=store_url]]" target="_blank" rel="noopener">🛒 Visit the Store</a>
+  </section>
+</main>
