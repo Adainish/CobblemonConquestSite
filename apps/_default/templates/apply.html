@@ -17,7 +17,7 @@
     <div class="appeal-type-grid" style="max-width:700px">
       [[for role in roles:]]
       <a class="appeal-type-card"
-         href="[[=URL('apply_form', role.lower())]]"
+         href="[[=URL('apply', role.lower())]]"
          aria-label="Apply for [[=role]]">
         <div class="icon" aria-hidden="true">⚔️</div>
         <div class="label">[[=role]]</div>
