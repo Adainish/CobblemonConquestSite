@@ -440,3 +440,8 @@ def apply_form(role="helper"):
 def apply_submitted():
     role = request.params.get("role", "Helper")
     return _ctx(role=role)
+
+
+@action("<path:path>")
+def redirect_404(path=None):
+    return redirect(URL("index"))
