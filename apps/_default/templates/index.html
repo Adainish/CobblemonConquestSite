@@ -12,12 +12,12 @@
 
     <div id="server-ip" class="hero-ip" data-ip="[[=server_ip]]" role="button"
          tabindex="0" aria-label="Click to copy server address [[=server_ip]]">
-      [[=server_ip]]
+      <span class="hero-ip-address">[[=server_ip]]</span>
       <span class="copy-hint">click to copy</span>
-    </div>
-    <div class="server-status" aria-live="polite">
-      <span class="status-dot" aria-hidden="true"></span>
-      <span class="player-count">Checking…</span>
+      <div class="server-status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="player-count">Checking…</span>
+      </div>
     </div>
 
     <div class="hero-actions">

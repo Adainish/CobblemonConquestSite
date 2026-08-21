@@ -227,26 +227,46 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
 }
 
 .hero-ip {
-    display: inline-block;
-    background: rgba(201,150,12,.12);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .45rem;
+    background: rgba(10,7,3,.55);
     border: 1.5px solid var(--gold);
-    color: var(--gold);
-    font-family: 'Courier New', monospace;
-    font-size: 1.25rem;
-    padding: .6rem 1.8rem;
-    border-radius: 4px;
-    letter-spacing: .15em;
+    border-radius: 6px;
+    padding: .85rem 2.2rem .75rem;
     cursor: pointer;
-    transition: background .2s;
+    transition: background .2s, border-color .2s;
     position: relative;
 }
-.hero-ip:hover { background: rgba(201,150,12,.22); }
+.hero-ip:hover { background: rgba(201,150,12,.15); border-color: var(--gold-light); }
+
+.hero-ip-address {
+    font-family: 'Courier New', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: .15em;
+    line-height: 1;
+}
+
 .hero-ip .copy-hint {
     font-size: .65rem;
     font-family: var(--font-body);
     display: block;
-    opacity: .6;
-    letter-spacing: 0;
+    opacity: .5;
+    letter-spacing: .05em;
+    color: var(--parchment);
+    line-height: 1;
+}
+
+/* Status row lives *inside* the .hero-ip card */
+.hero-ip .server-status {
+    margin-top: .1rem;
+    padding-top: .45rem;
+    border-top: 1px solid rgba(201,150,12,.2);
+    width: 100%;
+    justify-content: center;
 }
 
 .hero-actions {
@@ -541,11 +561,10 @@ footer a:hover { color: var(--gold); }
 .server-status {
     display: inline-flex;
     align-items: center;
-    gap: .45rem;
-    margin-top: .6rem;
-    font-size: .8rem;
+    gap: .5rem;
+    font-size: .85rem;
     font-family: var(--font-body);
-    color: rgba(245,239,224,.65);
+    color: rgba(245,239,224,.75);
     letter-spacing: .03em;
 }
 
