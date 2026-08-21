@@ -537,6 +537,44 @@ footer a:hover { color: var(--gold); }
     color: rgba(245,239,224,.85);
 }
 
+/* ── Server status badge ── */
+.server-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    margin-top: .6rem;
+    font-size: .8rem;
+    font-family: var(--font-body);
+    color: rgba(245,239,224,.65);
+    letter-spacing: .03em;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: rgba(245,239,224,.25);
+    transition: background .4s;
+}
+
+.status-dot--online {
+    background: #4caf50;
+    box-shadow: 0 0 0 0 rgba(76,175,80,.5);
+    animation: status-pulse 2.5s ease-out infinite;
+}
+
+.status-dot--offline {
+    background: #e05252;
+    animation: none;
+}
+
+@keyframes status-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(76,175,80,.55); }
+    70%  { box-shadow: 0 0 0 7px rgba(76,175,80,0); }
+    100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); }
+}
+
 /* ── Copy toast ── */
 #copy-toast {
     position: fixed;
