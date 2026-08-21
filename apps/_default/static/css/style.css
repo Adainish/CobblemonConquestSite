@@ -137,15 +137,44 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
     text-align: center;
     padding: 6rem 2rem 4rem;
     overflow: hidden;
+    isolation: isolate;
 }
 
 .hero-bg {
     position: absolute;
     inset: 0;
     background:
-        radial-gradient(ellipse 70% 50% at 50% 60%, rgba(139,26,26,.25) 0%, transparent 70%),
-        radial-gradient(ellipse 50% 40% at 50% 30%, rgba(201,150,12,.1) 0%, transparent 60%);
+        linear-gradient(180deg, rgba(12,7,3,.28) 0%, rgba(12,7,3,.52) 58%, rgba(12,7,3,.88) 100%),
+        var(--hero-image, none);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
     pointer-events: none;
+    z-index: 0;
+}
+
+.hero-bg::before,
+.hero-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+}
+
+.hero-bg::before {
+    background:
+        radial-gradient(ellipse 70% 50% at 50% 60%, rgba(139,26,26,.22) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 50% 30%, rgba(201,150,12,.15) 0%, transparent 60%);
+}
+
+.hero-bg::after {
+    background:
+        linear-gradient(90deg, rgba(12,7,3,.55) 0%, transparent 18%, transparent 82%, rgba(12,7,3,.55) 100%),
+        linear-gradient(180deg, rgba(245,239,224,.04) 0%, transparent 24%, transparent 76%, rgba(12,7,3,.4) 100%);
+}
+
+.hero > * {
+    position: relative;
+    z-index: 1;
 }
 
 /* Torii gate decorative SVG stripe */
@@ -157,6 +186,15 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
     height: 6px;
     background: linear-gradient(90deg, transparent, var(--crimson), var(--gold), var(--crimson), transparent);
 }
+
+.hero-home { --hero-image: url("../img/hero-home.svg"); }
+.hero-modpack { --hero-image: url("../img/hero-modpack.svg"); }
+.hero-voting { --hero-image: url("../img/hero-voting.svg"); }
+.hero-roadmap { --hero-image: url("../img/hero-roadmap.svg"); }
+.hero-appeals { --hero-image: url("../img/hero-appeals.svg"); }
+.hero-appeal-form { --hero-image: url("../img/hero-appeal-form.svg"); }
+.hero-apply { --hero-image: url("../img/hero-apply.svg"); }
+.hero-apply-form { --hero-image: url("../img/hero-apply-form.svg"); }
 
 .hero-kamon {
     font-size: 4rem;
