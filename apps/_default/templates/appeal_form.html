@@ -5,7 +5,7 @@
 <main>
   <section class="hero hero-appeal-form" style="padding:3rem 2rem 2rem;">
     <div class="hero-bg" aria-hidden="true"></div>
-    <div class="hero-kamon" aria-hidden="true">[[="🔨" if appeal_type == "ban" else "🔇"]]</div>
+    <div class="hero-kamon" aria-hidden="true">[[="🔨" if appeal_type == "ban" else ("💬" if appeal_type == "discord" else "🔇")]]</div>
     <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.6rem);">[[=appeal_type.title()]] Appeal</h1>
     <p class="hero-subtitle">Fill in the form below honestly and completely</p>
   </section>
@@ -51,7 +51,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="why_unban">Why should you be un[[=appeal_type]]ned? *</label>
+        <label class="form-label" for="why_unban">Why should you have this [[=appeal_type]] punishment lifted? *</label>
         <textarea class="form-control" id="why_unban" name="why_unban" required
                   placeholder="Convince us you deserve another chance…">[[=form_data.get('why_unban','')]]</textarea>
         [[if errors.get('why_unban'):]]

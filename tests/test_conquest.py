@@ -131,6 +131,20 @@ class TestAppeals:
         assert appeal.appeal_type == "mute"
         assert appeal.status == "open"
 
+    def test_discord_appeal_insert(self, db):
+        """Discord punishment appeals can be inserted and retrieved correctly."""
+        aid = db.appeal.insert(
+            appeal_type="discord",
+            minecraft_username="DiscordTestPlayer",
+            discord_username="DiscordTestPlayer#4321",
+            why_unban="I was falsely banned from the Discord",
+            ip_hash="hash_discord",
+        )
+        db.commit()
+        appeal = db(db.appeal.id == aid).select().first()
+        assert appeal.appeal_type == "discord"
+        assert appeal.status == "open"
+
     def test_spam_prevention_open_appeal_detected(self, db):
         """Cannot submit a duplicate appeal while one is open."""
         db.appeal.insert(

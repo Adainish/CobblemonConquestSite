@@ -26,7 +26,7 @@ db.define_table(
 # ── Appeals ────────────────────────────────────────────────────────────────
 db.define_table(
     "appeal",
-    Field("appeal_type", requires=IS_IN_SET(["ban", "mute"])),
+    Field("appeal_type", requires=IS_IN_SET(["ban", "mute", "discord"])),
     Field("minecraft_username", requires=[IS_NOT_EMPTY(), IS_LENGTH(maxsize=64)]),
     Field("discord_username", requires=[IS_NOT_EMPTY(), IS_LENGTH(maxsize=100)]),
     Field("reason", "text", requires=IS_NOT_EMPTY()),
