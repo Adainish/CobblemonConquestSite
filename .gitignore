@@ -34,3 +34,5 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+/apps/_default/databases/
+/apps/.service/
