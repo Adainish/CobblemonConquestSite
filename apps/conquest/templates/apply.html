@@ -1,0 +1,43 @@
+[[extend 'layout.html']]
+[[block page_title]]Staff Applications[[end]]
+[[block page_description]]Apply to become a staff member on Cobblemon Conquest. We're looking for dedicated players to help moderate and grow the community.[[end]]
+
+<main>
+  <section class="hero" style="padding:4rem 2rem 3rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">🎖️</div>
+    <h1 class="hero-title" style="font-size:clamp(1.8rem,4vw,3rem);">Staff Applications</h1>
+    <p class="hero-subtitle">Serve the realm – protect players and shape the community</p>
+  </section>
+
+  <section class="section" aria-labelledby="apply-choose-heading">
+    <h2 class="section-title" id="apply-choose-heading">Available Positions</h2>
+    <hr class="divider" />
+
+    <div class="appeal-type-grid" style="max-width:700px">
+      [[for role in roles:]]
+      <a class="appeal-type-card"
+         href="[[=URL('apply_form', role.lower())]]"
+         aria-label="Apply for [[=role]]">
+        <div class="icon" aria-hidden="true">⚔️</div>
+        <div class="label">[[=role]]</div>
+        <div class="desc">Help moderate chat, assist new players, and represent the Conquest community.</div>
+      </a>
+      [[pass]]
+    </div>
+
+    <div style="margin-top:3rem;max-width:640px;margin-left:auto;margin-right:auto;
+                background:rgba(245,239,224,.04);border:1px solid rgba(201,150,12,.2);
+                border-radius:6px;padding:1.5rem;">
+      <h3 style="font-family:var(--font-display);color:var(--gold-light);margin-bottom:.75rem;">📜 Requirements</h3>
+      <ul style="color:rgba(245,239,224,.75);font-size:.9rem;line-height:1.8;padding-left:1.2rem;">
+        <li>Minimum age: 13</li>
+        <li>Active on the server for at least 2 weeks</li>
+        <li>Active in Discord</li>
+        <li>No active punishments on your account</li>
+        <li>Ability to commit at least 5 hours per week</li>
+        <li>Calm, helpful attitude in all situations</li>
+      </ul>
+    </div>
+  </section>
+</main>

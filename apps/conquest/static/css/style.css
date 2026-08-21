@@ -1,0 +1,519 @@
+/* ═══════════════════════════════════════════════════════
+   Cobblemon Conquest – Feudal Japan / Cobblemon Theme
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Noto+Serif+JP:wght@300;400;700&display=swap');
+
+/* ── CSS Variables ── */
+:root {
+    --ink:          #1a1008;
+    --parchment:    #f5efe0;
+    --paper:        #fdf8ed;
+    --gold:         #c9960c;
+    --gold-light:   #e8b84b;
+    --crimson:      #8b1a1a;
+    --crimson-light:#c0392b;
+    --jade:         #2d6a4f;
+    --jade-light:   #40916c;
+    --cobblemon-red:#e63946;
+    --cobblemon-teal:#1d7a7a;
+    --border:       #c9960c55;
+    --shadow:       rgba(26,16,8,0.35);
+    --font-display: 'Cinzel', serif;
+    --font-body:    'Noto Serif JP', serif;
+    --nav-height:   70px;
+}
+
+/* ── Reset / Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+    font-family: var(--font-body);
+    background: var(--ink);
+    color: var(--parchment);
+    min-height: 100vh;
+    background-image:
+        url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c9960c' fill-opacity='0.04'%3E%3Cpath d='M40 0L50 30H80L57 48L66 80L40 62L14 80L23 48L0 30H30Z'/%3E%3C/g%3E%3C/svg%3E"),
+        linear-gradient(160deg, #0d0905 0%, #1a1008 40%, #120e06 100%);
+}
+
+a { color: var(--gold); text-decoration: none; transition: color .2s; }
+a:hover { color: var(--gold-light); }
+
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
+
+/* ── Navigation ── */
+.nav {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    height: var(--nav-height);
+    background: rgba(10,7,3,.92);
+    border-bottom: 2px solid var(--gold);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    padding: 0 2rem;
+    gap: 1.5rem;
+}
+
+.nav-brand {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: .1em;
+    text-shadow: 0 0 12px var(--gold);
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.nav-brand .brand-icon { font-size: 1.6rem; }
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.nav-links a {
+    font-family: var(--font-display);
+    font-size: .82rem;
+    letter-spacing: .06em;
+    color: var(--parchment);
+    padding: .35rem .6rem;
+    border-radius: 3px;
+    transition: background .2s, color .2s;
+}
+
+.nav-links a:hover,
+.nav-links a.active { color: var(--gold); background: rgba(201,150,12,.12); }
+
+.nav-cta {
+    font-family: var(--font-display);
+    font-size: .82rem;
+    background: var(--crimson);
+    color: var(--parchment) !important;
+    padding: .45rem 1rem;
+    border-radius: 3px;
+    border: 1px solid var(--crimson-light);
+    transition: background .2s, transform .15s;
+}
+.nav-cta:hover { background: var(--crimson-light); transform: translateY(-1px); color: #fff !important; }
+
+/* Mobile hamburger */
+.nav-toggle { display: none; background: none; border: none; cursor: pointer; }
+.nav-toggle span {
+    display: block; width: 26px; height: 2px;
+    background: var(--gold); margin: 5px 0;
+    transition: transform .3s, opacity .3s;
+}
+
+@media (max-width: 768px) {
+    .nav-toggle { display: block; }
+    .nav-links {
+        display: none;
+        position: absolute;
+        top: var(--nav-height);
+        left: 0; right: 0;
+        background: rgba(10,7,3,.97);
+        flex-direction: column;
+        padding: 1rem 2rem;
+        border-bottom: 2px solid var(--gold);
+        gap: .75rem;
+    }
+    .nav-links.open { display: flex; }
+}
+
+/* ── Hero ── */
+.hero {
+    position: relative;
+    text-align: center;
+    padding: 6rem 2rem 4rem;
+    overflow: hidden;
+}
+
+.hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 70% 50% at 50% 60%, rgba(139,26,26,.25) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 50% 30%, rgba(201,150,12,.1) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+/* Torii gate decorative SVG stripe */
+.hero::before {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, transparent, var(--crimson), var(--gold), var(--crimson), transparent);
+}
+
+.hero-kamon {
+    font-size: 4rem;
+    filter: drop-shadow(0 0 18px rgba(201,150,12,.6));
+    margin-bottom: 1.5rem;
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+.hero-title {
+    font-size: clamp(2.2rem, 6vw, 4rem);
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(201,150,12,.5), 0 2px 0 rgba(0,0,0,.8);
+    line-height: 1.1;
+    margin-bottom: .5rem;
+}
+
+.hero-subtitle {
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    color: var(--parchment);
+    opacity: .85;
+    margin-bottom: 2.5rem;
+    font-weight: 300;
+}
+
+.hero-ip {
+    display: inline-block;
+    background: rgba(201,150,12,.12);
+    border: 1.5px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Courier New', monospace;
+    font-size: 1.25rem;
+    padding: .6rem 1.8rem;
+    border-radius: 4px;
+    letter-spacing: .15em;
+    cursor: pointer;
+    transition: background .2s;
+    position: relative;
+}
+.hero-ip:hover { background: rgba(201,150,12,.22); }
+.hero-ip .copy-hint {
+    font-size: .65rem;
+    font-family: var(--font-body);
+    display: block;
+    opacity: .6;
+    letter-spacing: 0;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+}
+
+/* ── Buttons ── */
+.btn {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-size: .9rem;
+    letter-spacing: .07em;
+    padding: .75rem 2rem;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s, background .2s;
+    text-align: center;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px var(--shadow); }
+
+.btn-gold {
+    background: var(--gold);
+    color: var(--ink);
+    border-color: var(--gold-light);
+}
+.btn-gold:hover { background: var(--gold-light); color: var(--ink); }
+
+.btn-crimson {
+    background: var(--crimson);
+    color: var(--parchment);
+    border-color: var(--crimson-light);
+}
+.btn-crimson:hover { background: var(--crimson-light); color: #fff; }
+
+.btn-ghost {
+    background: transparent;
+    color: var(--parchment);
+    border-color: rgba(245,239,224,.4);
+}
+.btn-ghost:hover { border-color: var(--parchment); color: #fff; }
+
+.btn-jade {
+    background: var(--jade);
+    color: var(--parchment);
+    border-color: var(--jade-light);
+}
+.btn-jade:hover { background: var(--jade-light); }
+
+/* ── Section ── */
+.section {
+    padding: 4rem 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.section-title {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: .5rem;
+    text-shadow: 0 0 20px rgba(201,150,12,.3);
+}
+
+.section-sub {
+    text-align: center;
+    color: rgba(245,239,224,.65);
+    font-size: 1rem;
+    margin-bottom: 3rem;
+}
+
+.divider {
+    border: none;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: .75rem auto 2.5rem;
+    width: 220px;
+}
+
+/* ── Cards ── */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+}
+
+.card {
+    background: rgba(245,239,224,.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.75rem;
+    transition: border-color .2s, transform .2s;
+}
+.card:hover { border-color: var(--gold); transform: translateY(-3px); }
+
+.card-icon { font-size: 2.2rem; margin-bottom: .75rem; }
+.card-title { font-family: var(--font-display); font-size: 1.1rem; color: var(--gold); margin-bottom: .5rem; }
+.card-body { color: rgba(245,239,224,.8); font-size: .93rem; line-height: 1.7; }
+
+/* ── Roadmap ── */
+.roadmap-list { list-style: none; display: flex; flex-direction: column; gap: 1rem; }
+
+.roadmap-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: rgba(245,239,224,.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem 1.5rem;
+    transition: border-color .2s;
+}
+.roadmap-item:hover { border-color: var(--gold); }
+
+.rm-badge {
+    min-width: 100px;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: .7rem;
+    letter-spacing: .08em;
+    padding: .25rem .6rem;
+    border-radius: 3px;
+    margin-top: .15rem;
+}
+
+.badge-planned    { background: rgba(201,150,12,.18); color: var(--gold-light); border: 1px solid var(--gold); }
+.badge-in_progress{ background: rgba(29,122,122,.25); color: #7fd8d8;            border: 1px solid #1d7a7a; }
+.badge-completed  { background: rgba(45,106,79,.25);  color: #6fcf97;            border: 1px solid var(--jade); }
+.badge-cancelled  { background: rgba(120,60,60,.2);   color: #c47a7a;            border: 1px solid #8b4444; }
+
+.rm-content h3 { font-family: var(--font-display); font-size: 1.05rem; color: var(--parchment); margin-bottom: .3rem; }
+.rm-content p  { color: rgba(245,239,224,.7); font-size: .9rem; line-height: 1.65; }
+
+/* ── Vote cards ── */
+.vote-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
+
+.vote-card {
+    background: rgba(245,239,224,.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: border-color .2s, transform .2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+.vote-card:hover { border-color: var(--gold-light); transform: translateY(-3px); }
+.vote-card-name { font-family: var(--font-display); font-size: 1rem; color: var(--parchment); }
+
+/* ── Forms ── */
+.form-card {
+    background: rgba(245,239,224,.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2.5rem;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.form-group { margin-bottom: 1.4rem; }
+
+.form-label {
+    display: block;
+    font-family: var(--font-display);
+    font-size: .82rem;
+    letter-spacing: .07em;
+    color: var(--gold-light);
+    margin-bottom: .45rem;
+}
+
+.form-control {
+    width: 100%;
+    background: rgba(245,239,224,.06);
+    border: 1px solid rgba(201,150,12,.35);
+    border-radius: 4px;
+    padding: .65rem 1rem;
+    color: var(--parchment);
+    font-family: var(--font-body);
+    font-size: .95rem;
+    transition: border-color .2s, background .2s;
+    outline: none;
+}
+.form-control:focus { border-color: var(--gold); background: rgba(245,239,224,.1); }
+.form-control::placeholder { color: rgba(245,239,224,.3); }
+
+textarea.form-control { min-height: 110px; resize: vertical; }
+
+.form-error { color: #e67e7e; font-size: .82rem; margin-top: .3rem; }
+
+.form-flash {
+    background: rgba(139,26,26,.25);
+    border: 1px solid var(--crimson-light);
+    border-radius: 4px;
+    padding: 1rem 1.25rem;
+    color: #f0a0a0;
+    margin-bottom: 1.5rem;
+    font-size: .93rem;
+}
+
+.form-flash.info {
+    background: rgba(29,122,122,.2);
+    border-color: var(--cobblemon-teal);
+    color: #a0e8e8;
+}
+
+/* ── Appeal type chooser ── */
+.appeal-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.appeal-type-card {
+    background: rgba(245,239,224,.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, transform .2s;
+    display: block;
+}
+.appeal-type-card:hover { border-color: var(--gold); transform: translateY(-3px); }
+.appeal-type-card .icon { font-size: 2.5rem; margin-bottom: .75rem; }
+.appeal-type-card .label { font-family: var(--font-display); font-size: 1.1rem; color: var(--gold); }
+.appeal-type-card .desc  { font-size: .88rem; color: rgba(245,239,224,.65); margin-top: .35rem; }
+
+/* ── Success page ── */
+.success-box {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+.success-icon { font-size: 4rem; margin-bottom: 1rem; }
+.success-title { font-family: var(--font-display); font-size: 2rem; color: var(--jade-light); margin-bottom: 1rem; }
+.success-body  { color: rgba(245,239,224,.8); max-width: 520px; margin: 0 auto 2rem; line-height: 1.7; }
+
+/* ── Decorative horizontal kamon band ── */
+.kamon-band {
+    text-align: center;
+    font-size: 1.8rem;
+    letter-spacing: 1.5rem;
+    opacity: .15;
+    padding: 1rem 0;
+    user-select: none;
+    overflow: hidden;
+}
+
+/* ── Footer ── */
+footer {
+    border-top: 1px solid rgba(201,150,12,.25);
+    text-align: center;
+    padding: 2rem;
+    color: rgba(245,239,224,.4);
+    font-size: .82rem;
+    letter-spacing: .05em;
+}
+footer a { color: rgba(201,150,12,.6); }
+footer a:hover { color: var(--gold); }
+
+/* ── Torii stripe top ── */
+.torii-stripe {
+    height: 4px;
+    background: linear-gradient(90deg, transparent 0%, var(--crimson) 20%, var(--gold) 50%, var(--crimson) 80%, transparent 100%);
+}
+
+/* ── Modpack feature list ── */
+.feature-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: .75rem;
+    margin-top: 1rem;
+}
+.feature-list li {
+    padding: .6rem .9rem;
+    background: rgba(245,239,224,.04);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 4px 4px 0;
+    font-size: .9rem;
+    color: rgba(245,239,224,.85);
+}
+
+/* ── Copy toast ── */
+#copy-toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(10,7,3,.95);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: .6rem 1.4rem;
+    border-radius: 4px;
+    font-family: var(--font-display);
+    font-size: .85rem;
+    opacity: 0;
+    transition: opacity .3s, transform .3s;
+    pointer-events: none;
+    z-index: 9999;
+}
+#copy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
