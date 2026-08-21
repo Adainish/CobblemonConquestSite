@@ -1,12 +1,5 @@
 <svg width="1600" height="720" viewBox="0 0 1600 720" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="roadmap-sky" x1="800" y1="40" x2="800" y2="720" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2F2A1D"/>
-      <stop offset="0.44" stop-color="#241B13"/>
-      <stop offset="1" stop-color="#120B08"/>
-    </linearGradient>
-  </defs>
-  <rect width="1600" height="720" fill="url(#roadmap-sky)"/>
+  <rect width="1600" height="720" fill="#241B13"/>
   <circle cx="1170" cy="165" r="108" fill="#D4A53B" fill-opacity="0.18"/>
   <path d="M0 471C156 428 278 401 395 405C535 411 665 457 790 452C916 447 1020 387 1148 373C1299 356 1452 381 1600 441V720H0V471Z" fill="#23150F"/>
   <path d="M0 551C146 523 282 515 421 528C560 541 686 571 829 575C965 579 1087 554 1214 532C1344 509 1463 507 1600 539V720H0V551Z" fill="#120B08"/>

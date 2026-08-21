@@ -1,12 +1,5 @@
 <svg width="1600" height="720" viewBox="0 0 1600 720" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="vote-sky" x1="800" y1="40" x2="800" y2="720" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3A211B"/>
-      <stop offset="0.48" stop-color="#251613"/>
-      <stop offset="1" stop-color="#120B08"/>
-    </linearGradient>
-  </defs>
-  <rect width="1600" height="720" fill="url(#vote-sky)"/>
+  <rect width="1600" height="720" fill="#251613"/>
   <circle cx="1125" cy="162" r="108" fill="#D4A53B" fill-opacity="0.18"/>
   <path d="M0 468C137 418 275 400 406 410C550 421 698 473 832 467C965 461 1080 403 1214 390C1341 378 1456 394 1600 448V720H0V468Z" fill="#24140E"/>
   <path d="M0 553C138 517 276 510 410 525C563 542 693 579 842 578C983 578 1109 549 1240 526C1369 503 1483 501 1600 536V720H0V553Z" fill="#120B08"/>
