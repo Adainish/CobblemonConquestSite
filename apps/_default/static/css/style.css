@@ -187,7 +187,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
     background: linear-gradient(90deg, transparent, var(--crimson), var(--gold), var(--crimson), transparent);
 }
 
-.hero-home { --hero-image: url("../img/hero-home.svg"); }
+.hero-home { --hero-image: url("../img/hero-home.png"); }
 .hero-modpack { --hero-image: url("../img/hero-modpack.svg"); }
 .hero-voting { --hero-image: url("../img/hero-voting.svg"); }
 .hero-roadmap { --hero-image: url("../img/hero-roadmap.svg"); }
