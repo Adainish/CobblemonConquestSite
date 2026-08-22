@@ -57,6 +57,15 @@ VOTE_SITES = [
 DISCORD_APPEALS_WEBHOOK = ""
 DISCORD_STAFFAPPS_WEBHOOK = ""
 
+# ── Discord bot / Roadmap management ─────────────────────────────────────
+# Bot token for the roadmap-management Discord bot (set in settings_private.py)
+DISCORD_BOT_TOKEN = ""
+# Discord role names (case-insensitive) that may use roadmap bot commands
+DISCORD_ROADMAP_ALLOWED_ROLES = ["Admin", "Owner", "Staff Manager"]
+# Secret key used by the Discord bot to authenticate against the site API
+# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+ROADMAP_API_SECRET = ""
+
 # Staff roles available for applications (ordered by seniority ascending)
 STAFF_ROLES = ["Helper"]
 

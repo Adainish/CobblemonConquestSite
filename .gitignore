@@ -36,3 +36,6 @@ Thumbs.db
 *.swo
 /apps/_default/databases/
 /apps/.service/
+
+# Discord bot – local config (contains secrets)
+discord_bot/config.py
