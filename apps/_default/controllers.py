@@ -72,6 +72,23 @@ def _send_discord_webhook(webhook_url: str, embed: dict) -> str | None:
     return None
 
 
+def _add_discord_reactions(webhook_url: str, message_id: str, emojis: list[str]):
+    """Add reactions to a Discord message via webhook token."""
+    if not (webhook_url and message_id and emojis):
+        return
+
+    base = webhook_url.rstrip("/")
+    for emoji in emojis:
+        try:
+            encoded_emoji = requests.utils.quote(emoji, safe="")
+            requests.put(
+                f"{base}/messages/{message_id}/reactions/{encoded_emoji}/@me",
+                timeout=5,
+            )
+        except Exception as exc:
+            logger.warning("Discord reaction failed: %s", exc)
+
+
 def _resolve_mc_host(host: str, port: int) -> tuple[str, int]:
     """Resolve a Minecraft SRV record for *host* and return (target_host, target_port).
 
@@ -277,12 +294,13 @@ def appeal_form(appeal_type="ban"):
                         {"name": "Punishment Reason", "value": punishment_reason or "Not provided", "inline": False},
                         {"name": "Why They Should Be " + unpunished, "value": why_unban, "inline": False},
                     ],
-                    "footer": {"text": f"Appeal ID {appeal_id} • Use /appeals vote"},
+                    "footer": {"text": f"Appeal ID {appeal_id} • React ✅/❌/🔒 or use /appeals vote"},
                     "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
                 }
                 msg_id = _send_discord_webhook(settings.DISCORD_APPEALS_WEBHOOK, embed)
                 if msg_id:
                     db(db.appeal.id == appeal_id).update(discord_message_id=msg_id)
+                    _add_discord_reactions(settings.DISCORD_APPEALS_WEBHOOK, msg_id, ["✅", "❌", "🔒"])
                     db.commit()
 
                 redirect(URL("appeal_submitted", vars={"type": appeal_type}))
@@ -401,12 +419,13 @@ def apply_form(role="helper"):
                         {"name": "Why Apply", "value": why_apply, "inline": False},
                         {"name": "Prior Experience", "value": form_data.get("prior_experience") or "None", "inline": False},
                     ],
-                    "footer": {"text": f"Application ID {app_id} • Use /applications vote"},
+                    "footer": {"text": f"Application ID {app_id} • React ✅/❌/⏸️ or use /applications vote"},
                     "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
                 }
                 msg_id = _send_discord_webhook(settings.DISCORD_STAFFAPPS_WEBHOOK, embed)
                 if msg_id:
                     db(db.staff_application.id == app_id).update(discord_message_id=msg_id)
+                    _add_discord_reactions(settings.DISCORD_STAFFAPPS_WEBHOOK, msg_id, ["✅", "❌", "⏸️"])
                     db.commit()
 
                 redirect(URL("apply_submitted", vars={"role": role_title}))

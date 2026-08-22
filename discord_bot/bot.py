@@ -10,8 +10,10 @@ Slash commands (all require a role listed in config.ALLOWED_ROLES):
   /roadmap remove <id>              – delete an item
   /appeals list [status]            – list punishment appeals by status
   /appeals vote <id> <decision>     – set appeal outcome
+  /appeals force-accept <id>        – force set appeal to approved
   /applications list [status]       – list staff applications by status
   /applications vote <id> <decision>– set staff application outcome
+  /applications force-accept <id>   – force set application to accepted
 
 Setup:
   1. Copy config.example.py → config.py and fill in your values.
@@ -403,6 +405,40 @@ async def appeals_vote(
         )
 
 
+@appeals_group.command(name="force-accept", description="Force set an appeal outcome to approved.")
+@app_commands.describe(
+    appeal_id="The appeal ID shown in Discord/webhook messages.",
+)
+async def appeals_force_accept(
+    interaction: discord.Interaction,
+    appeal_id: int,
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use appeals commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    status_code, body = await _patch(f"api/appeals/{appeal_id}", {"status": "approved"})
+
+    if status_code == 200:
+        await interaction.followup.send(
+            f"✅ Appeal **#{body['id']}** force-set to **{body['status']}**.",
+            ephemeral=True,
+        )
+    elif status_code == 404:
+        await interaction.followup.send(
+            f"⚠️ Appeal #{appeal_id} not found.", ephemeral=True
+        )
+    else:
+        error = body.get("message") or body.get("error") or str(body)
+        await interaction.followup.send(
+            f"⚠️ Failed to force-update appeal (HTTP {status_code}): {error}",
+            ephemeral=True,
+        )
+
+
 bot.tree.add_command(appeals_group)
 
 
@@ -513,6 +549,46 @@ async def applications_vote(
         error = body.get("message") or body.get("error") or str(body)
         await interaction.followup.send(
             f"⚠️ Failed to update application (HTTP {status_code}): {error}",
+            ephemeral=True,
+        )
+
+
+@applications_group.command(
+    name="force-accept",
+    description="Force set a staff application outcome to accepted.",
+)
+@app_commands.describe(
+    application_id="The staff application ID shown in webhook messages.",
+)
+async def applications_force_accept(
+    interaction: discord.Interaction,
+    application_id: int,
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use applications commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    status_code, body = await _patch(
+        f"api/staff-applications/{application_id}",
+        {"status": "accepted"},
+    )
+
+    if status_code == 200:
+        await interaction.followup.send(
+            f"✅ Staff application **#{body['id']}** force-set to **{body['status']}**.",
+            ephemeral=True,
+        )
+    elif status_code == 404:
+        await interaction.followup.send(
+            f"⚠️ Staff application #{application_id} not found.", ephemeral=True
+        )
+    else:
+        error = body.get("message") or body.get("error") or str(body)
+        await interaction.followup.send(
+            f"⚠️ Failed to force-update application (HTTP {status_code}): {error}",
             ephemeral=True,
         )
 
