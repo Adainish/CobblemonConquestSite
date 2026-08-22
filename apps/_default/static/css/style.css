@@ -35,6 +35,8 @@ body {
     background: var(--ink);
     color: var(--parchment);
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     background-image:
         url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c9960c' fill-opacity='0.04'%3E%3Cpath d='M40 0L50 30H80L57 48L66 80L40 62L14 80L23 48L0 30H30Z'/%3E%3C/g%3E%3C/svg%3E"),
         linear-gradient(160deg, #0d0905 0%, #1a1008 40%, #120e06 100%);
@@ -523,6 +525,8 @@ textarea.form-control { min-height: 110px; resize: vertical; }
 }
 
 /* ── Footer ── */
+main { flex: 1; }
+
 footer {
     background: rgba(10,7,3,.92);
     border-top: 2px solid var(--gold);
