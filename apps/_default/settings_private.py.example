@@ -14,7 +14,9 @@ DISCORD_APPEALS_WEBHOOK = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
 DISCORD_STAFFAPPS_WEBHOOK = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
 
 # ── Discord bot / Roadmap management ─────────────────────────────────────
-# Bot token for the roadmap-management Discord bot
+# Bot token for the roadmap-management Discord bot.
+# The bot also sends a DM to applicants when their staff application is accepted.
+# The bot must share a guild with the applicant to resolve their user ID.
 DISCORD_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
 
 # Discord role names (case-insensitive) allowed to run roadmap commands

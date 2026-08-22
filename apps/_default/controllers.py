@@ -89,6 +89,98 @@ def _add_discord_reactions(webhook_url: str, message_id: str, emojis: list[str])
             logger.warning("Discord reaction failed: %s", exc)
 
 
+def _send_discord_dm(bot_token: str, discord_username: str, message: str):
+    """Send a DM to a Discord user via the bot token.
+
+    Looks up the user by username using the Discord REST API, opens (or
+    retrieves) a DM channel, then sends *message* to that channel.
+    Failures are logged as warnings so the web request is never blocked.
+    """
+    if not (bot_token and discord_username and message):
+        return
+
+    headers = {
+        "Authorization": f"Bot {bot_token}",
+        "Content-Type": "application/json",
+    }
+    base = "https://discord.com/api/v10"
+
+    try:
+        # Search for the user by username so we can get their numeric ID.
+        search_resp = requests.get(
+            f"{base}/guilds",
+            headers=headers,
+            timeout=5,
+        )
+        # We can't search globally by username without a guild; instead use
+        # the lookup endpoint available to bots: POST /users/@me/channels
+        # requires knowing the recipient_id first.  We resolve the user ID
+        # by searching across guilds the bot is in.
+        recipient_id = None
+
+        guilds_resp = requests.get(f"{base}/users/@me/guilds", headers=headers, timeout=5)
+        if guilds_resp.ok:
+            for guild in guilds_resp.json():
+                members_resp = requests.get(
+                    f"{base}/guilds/{guild['id']}/members/search",
+                    headers=headers,
+                    params={"query": discord_username, "limit": 5},
+                    timeout=5,
+                )
+                if members_resp.ok:
+                    for member in members_resp.json():
+                        user = member.get("user", {})
+                        # Match on username (case-insensitive) or global_name
+                        if (
+                            user.get("username", "").lower() == discord_username.lower()
+                            or user.get("global_name", "").lower() == discord_username.lower()
+                        ):
+                            recipient_id = user["id"]
+                            break
+                if recipient_id:
+                    break
+
+        if not recipient_id:
+            logger.warning(
+                "Discord DM: could not resolve user ID for '%s'", discord_username
+            )
+            return
+
+        # Open a DM channel with the user.
+        dm_resp = requests.post(
+            f"{base}/users/@me/channels",
+            headers=headers,
+            data=json.dumps({"recipient_id": recipient_id}),
+            timeout=5,
+        )
+        if not dm_resp.ok:
+            logger.warning(
+                "Discord DM: failed to open DM channel for user %s: %s",
+                recipient_id,
+                dm_resp.text,
+            )
+            return
+
+        channel_id = dm_resp.json()["id"]
+
+        # Send the message.
+        msg_resp = requests.post(
+            f"{base}/channels/{channel_id}/messages",
+            headers=headers,
+            data=json.dumps({"content": message}),
+            timeout=5,
+        )
+        if not msg_resp.ok:
+            logger.warning(
+                "Discord DM: failed to send message to channel %s: %s",
+                channel_id,
+                msg_resp.text,
+            )
+
+    except Exception as exc:
+        logger.warning("Discord DM failed: %s", exc)
+
+
 def _resolve_mc_host(host: str, port: int) -> tuple[str, int]:
     """Resolve a Minecraft SRV record for *host* and return (target_host, target_port).
 
@@ -707,7 +799,23 @@ def api_staff_application_update(application_id):
     if status not in _STAFF_APP_STATUSES:
         raise HTTP(400, f"status must be one of: {', '.join(sorted(_STAFF_APP_STATUSES))}")
 
+    previous_status = row.status
     db(db.staff_application.id == application_id).update(status=status)
     db.commit()
     row = db(db.staff_application.id == application_id).select().first()
+
+    # Notify the applicant via Discord DM when their application is accepted.
+    if status == "accepted" and previous_status != "accepted":
+        _send_discord_dm(
+            settings.DISCORD_BOT_TOKEN,
+            row.discord_username,
+            (
+                f"🎉 Congratulations, **{row.minecraft_username}**! "
+                f"Your staff application for the **{row.role}** role on "
+                f"Cobblemon Conquest has been **accepted**. "
+                f"Welcome to the team! Please check the Discord server for next steps: "
+                f"{settings.DISCORD_INVITE_URL}"
+            ),
+        )
+
     return json.dumps(_serialize_staff_application(row))
