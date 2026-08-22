@@ -1,5 +1,5 @@
 """
-Cobblemon Conquest – roadmap management Discord bot.
+Cobblemon Conquest – roadmap and moderation management Discord bot.
 
 Slash commands (all require a role listed in config.ALLOWED_ROLES):
   /roadmap list                     – list all roadmap items
@@ -8,6 +8,10 @@ Slash commands (all require a role listed in config.ALLOWED_ROLES):
   /roadmap edit <id> [title] [description] [status] [sort_order]
                                     – edit an existing item
   /roadmap remove <id>              – delete an item
+  /appeals list [status]            – list punishment appeals by status
+  /appeals vote <id> <decision>     – set appeal outcome
+  /applications list [status]       – list staff applications by status
+  /applications vote <id> <decision>– set staff application outcome
 
 Setup:
   1. Copy config.example.py → config.py and fill in your values.
@@ -98,6 +102,12 @@ _STATUS_EMOJI = {
 def _fmt_status(status: str) -> str:
     emoji = _STATUS_EMOJI.get(status, "❓")
     return f"{emoji} {status.replace('_', ' ').title()}"
+
+
+def _shorten(value: str, max_len: int = 100) -> str:
+    if len(value) <= max_len:
+        return value
+    return value[: max_len - 1] + "…"
 
 
 # ── Bot setup ─────────────────────────────────────────────────────────────
@@ -290,6 +300,224 @@ async def roadmap_remove(interaction: discord.Interaction, item_id: int) -> None
 
 
 bot.tree.add_command(roadmap_group)
+
+
+# ── /appeals command group ─────────────────────────────────────────────────
+
+appeals_group = app_commands.Group(
+    name="appeals",
+    description="Review punishment appeals submitted via the website.",
+)
+
+_APPEAL_STATUSES = ["open", "approved", "denied", "closed"]
+_APPEAL_DECISIONS = {
+    "approve": "approved",
+    "deny": "denied",
+    "close": "closed",
+}
+
+
+@appeals_group.command(name="list", description="List punishment appeals by status.")
+@app_commands.describe(status="Appeal status to list.")
+@app_commands.choices(
+    status=[app_commands.Choice(name=s.title(), value=s) for s in _APPEAL_STATUSES]
+)
+async def appeals_list(
+    interaction: discord.Interaction,
+    status: str = "open",
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use appeals commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    status_code, body = await _get(f"api/appeals?status={status}")
+
+    if status_code != 200 or not isinstance(body, list):
+        await interaction.followup.send(
+            f"⚠️ Failed to fetch appeals (HTTP {status_code}).", ephemeral=True
+        )
+        return
+
+    if not body:
+        await interaction.followup.send(
+            f"No appeals with status **{status}**.", ephemeral=True
+        )
+        return
+
+    lines = [f"**Appeals ({status})** – {len(body)} item(s)\n"]
+    for item in body[:20]:
+        lines.append(
+            f"**#{item['id']}** [{item['appeal_type']}] "
+            f"{item['minecraft_username']} ({item['discord_username']})\n"
+            f"  {_shorten(item.get('why_unban') or 'No appeal reason provided.', 120)}"
+        )
+    if len(body) > 20:
+        lines.append(f"\n…and {len(body) - 20} more.")
+
+    await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+
+@appeals_group.command(name="vote", description="Set the outcome of an appeal.")
+@app_commands.describe(
+    appeal_id="The appeal ID shown in Discord/webhook messages.",
+    decision="Vote decision.",
+)
+@app_commands.choices(
+    decision=[
+        app_commands.Choice(name="Approve", value="approve"),
+        app_commands.Choice(name="Deny", value="deny"),
+        app_commands.Choice(name="Close", value="close"),
+    ]
+)
+async def appeals_vote(
+    interaction: discord.Interaction,
+    appeal_id: int,
+    decision: str,
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use appeals commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    new_status = _APPEAL_DECISIONS[decision]
+    status_code, body = await _patch(f"api/appeals/{appeal_id}", {"status": new_status})
+
+    if status_code == 200:
+        await interaction.followup.send(
+            f"✅ Appeal **#{body['id']}** set to **{body['status']}**.", ephemeral=True
+        )
+    elif status_code == 404:
+        await interaction.followup.send(
+            f"⚠️ Appeal #{appeal_id} not found.", ephemeral=True
+        )
+    else:
+        error = body.get("message") or body.get("error") or str(body)
+        await interaction.followup.send(
+            f"⚠️ Failed to update appeal (HTTP {status_code}): {error}",
+            ephemeral=True,
+        )
+
+
+bot.tree.add_command(appeals_group)
+
+
+# ── /applications command group ────────────────────────────────────────────
+
+applications_group = app_commands.Group(
+    name="applications",
+    description="Review staff applications submitted via the website.",
+)
+
+_APPLICATION_STATUSES = ["pending", "on_hold", "accepted", "rejected"]
+_APPLICATION_DECISIONS = {
+    "accept": "accepted",
+    "reject": "rejected",
+    "hold": "on_hold",
+}
+
+
+@applications_group.command(
+    name="list",
+    description="List staff applications by status.",
+)
+@app_commands.describe(status="Application status to list.")
+@app_commands.choices(
+    status=[app_commands.Choice(name=s.replace("_", " ").title(), value=s) for s in _APPLICATION_STATUSES]
+)
+async def applications_list(
+    interaction: discord.Interaction,
+    status: str = "pending",
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use applications commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    status_code, body = await _get(f"api/staff-applications?status={status}")
+
+    if status_code != 200 or not isinstance(body, list):
+        await interaction.followup.send(
+            f"⚠️ Failed to fetch applications (HTTP {status_code}).", ephemeral=True
+        )
+        return
+
+    if not body:
+        await interaction.followup.send(
+            f"No staff applications with status **{status}**.", ephemeral=True
+        )
+        return
+
+    lines = [f"**Staff Applications ({status})** – {len(body)} item(s)\n"]
+    for item in body[:20]:
+        lines.append(
+            f"**#{item['id']}** [{item['role']}] "
+            f"{item['minecraft_username']} ({item['discord_username']})\n"
+            f"  {_shorten(item.get('why_apply') or 'No application reason provided.', 120)}"
+        )
+    if len(body) > 20:
+        lines.append(f"\n…and {len(body) - 20} more.")
+
+    await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+
+@applications_group.command(
+    name="vote",
+    description="Set the outcome of a staff application.",
+)
+@app_commands.describe(
+    application_id="The staff application ID shown in webhook messages.",
+    decision="Vote decision.",
+)
+@app_commands.choices(
+    decision=[
+        app_commands.Choice(name="Accept", value="accept"),
+        app_commands.Choice(name="Reject", value="reject"),
+        app_commands.Choice(name="Put On Hold", value="hold"),
+    ]
+)
+async def applications_vote(
+    interaction: discord.Interaction,
+    application_id: int,
+    decision: str,
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use applications commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    new_status = _APPLICATION_DECISIONS[decision]
+    status_code, body = await _patch(
+        f"api/staff-applications/{application_id}",
+        {"status": new_status},
+    )
+
+    if status_code == 200:
+        await interaction.followup.send(
+            f"✅ Staff application **#{body['id']}** set to **{body['status']}**.",
+            ephemeral=True,
+        )
+    elif status_code == 404:
+        await interaction.followup.send(
+            f"⚠️ Staff application #{application_id} not found.", ephemeral=True
+        )
+    else:
+        error = body.get("message") or body.get("error") or str(body)
+        await interaction.followup.send(
+            f"⚠️ Failed to update application (HTTP {status_code}): {error}",
+            ephemeral=True,
+        )
+
+
+bot.tree.add_command(applications_group)
 
 if __name__ == "__main__":
     bot.run(config.BOT_TOKEN)

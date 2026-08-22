@@ -72,24 +72,6 @@ def _send_discord_webhook(webhook_url: str, embed: dict) -> str | None:
     return None
 
 
-def _add_discord_reactions(webhook_url: str, message_id: str):
-    """Add ✅ and ❌ vote reactions to a Discord message via the API.
-    Requires a bot token rather than a plain webhook, so this is a no-op
-    unless a bot token is configured in settings_private.py.
-    """
-    bot_token = getattr(settings, "DISCORD_BOT_TOKEN", None)
-    channel_id = getattr(settings, "DISCORD_APPEALS_CHANNEL_ID", None)
-    if not (bot_token and channel_id and message_id):
-        return
-    base = f"https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}/reactions"
-    headers = {"Authorization": f"Bot {bot_token}"}
-    for emoji in ["%E2%9C%85", "%E2%9D%8C"]:  # ✅ ❌ url-encoded
-        try:
-            requests.put(f"{base}/{emoji}/@me", headers=headers, timeout=5)
-        except Exception as exc:
-            logger.warning("Discord reaction failed: %s", exc)
-
-
 def _resolve_mc_host(host: str, port: int) -> tuple[str, int]:
     """Resolve a Minecraft SRV record for *host* and return (target_host, target_port).
 
@@ -295,13 +277,12 @@ def appeal_form(appeal_type="ban"):
                         {"name": "Punishment Reason", "value": punishment_reason or "Not provided", "inline": False},
                         {"name": "Why They Should Be " + unpunished, "value": why_unban, "inline": False},
                     ],
-                    "footer": {"text": f"Appeal ID {appeal_id} • React ✅ to approve, ❌ to deny"},
+                    "footer": {"text": f"Appeal ID {appeal_id} • Use /appeals vote"},
                     "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
                 }
                 msg_id = _send_discord_webhook(settings.DISCORD_APPEALS_WEBHOOK, embed)
                 if msg_id:
                     db(db.appeal.id == appeal_id).update(discord_message_id=msg_id)
-                    _add_discord_reactions(settings.DISCORD_APPEALS_WEBHOOK, msg_id)
                     db.commit()
 
                 redirect(URL("appeal_submitted", vars={"type": appeal_type}))
@@ -420,7 +401,7 @@ def apply_form(role="helper"):
                         {"name": "Why Apply", "value": why_apply, "inline": False},
                         {"name": "Prior Experience", "value": form_data.get("prior_experience") or "None", "inline": False},
                     ],
-                    "footer": {"text": f"Application ID {app_id}"},
+                    "footer": {"text": f"Application ID {app_id} • Use /applications vote"},
                     "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
                 }
                 msg_id = _send_discord_webhook(settings.DISCORD_STAFFAPPS_WEBHOOK, embed)
@@ -468,6 +449,49 @@ def _check_roadmap_auth():
         raise HTTP(403, "Forbidden")
 
 
+def _read_json_body() -> dict:
+    try:
+        body = json.loads(request.body.read())
+    except (ValueError, AttributeError):
+        raise HTTP(400, "Invalid JSON body")
+    if not isinstance(body, dict):
+        raise HTTP(400, "JSON body must be an object")
+    return body
+
+
+def _serialize_appeal(row) -> dict:
+    return {
+        "id": row.id,
+        "appeal_type": row.appeal_type,
+        "minecraft_username": row.minecraft_username,
+        "discord_username": row.discord_username,
+        "reason": row.reason or "",
+        "punishment_reason": row.punishment_reason or "",
+        "why_unban": row.why_unban or "",
+        "status": row.status,
+        "discord_message_id": row.discord_message_id or "",
+        "submitted_on": row.submitted_on.isoformat() if row.submitted_on else "",
+    }
+
+
+def _serialize_staff_application(row) -> dict:
+    return {
+        "id": row.id,
+        "role": row.role,
+        "minecraft_username": row.minecraft_username,
+        "discord_username": row.discord_username,
+        "age": row.age,
+        "timezone": row.timezone,
+        "hours_per_week": row.hours_per_week,
+        "why_apply": row.why_apply or "",
+        "prior_experience": row.prior_experience or "",
+        "anything_else": row.anything_else or "",
+        "status": row.status,
+        "discord_message_id": row.discord_message_id or "",
+        "submitted_on": row.submitted_on.isoformat() if row.submitted_on else "",
+    }
+
+
 @action("api/roadmap", method=["GET"])
 def api_roadmap_list():
     """Return all roadmap items as JSON (public, no auth required)."""
@@ -496,10 +520,7 @@ def api_roadmap_create():
     _check_roadmap_auth()
     response.headers["Content-Type"] = "application/json"
 
-    try:
-        body = json.loads(request.body.read())
-    except (ValueError, AttributeError):
-        raise HTTP(400, "Invalid JSON body")
+    body = _read_json_body()
 
     title = (body.get("title") or "").strip()
     if not title:
@@ -536,10 +557,7 @@ def api_roadmap_update(item_id):
     if not row:
         raise HTTP(404, f"Roadmap item {item_id} not found")
 
-    try:
-        body = json.loads(request.body.read())
-    except (ValueError, AttributeError):
-        raise HTTP(400, "Invalid JSON body")
+    body = _read_json_body()
 
     updates = {}
     if "title" in body:
@@ -590,3 +608,87 @@ def api_roadmap_delete(item_id):
     db(db.roadmap_item.id == item_id).delete()
     db.commit()
     return json.dumps({"deleted": item_id})
+
+
+_APPEAL_STATUSES = {"open", "approved", "denied", "closed"}
+_STAFF_APP_STATUSES = {"pending", "accepted", "rejected", "on_hold"}
+
+
+@action("api/appeals", method=["GET"])
+def api_appeals_list():
+    """List appeals. Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+    response.headers["Cache-Control"] = "no-store"
+
+    status = request.params.get("status", "open").strip().lower()
+    if status and status not in _APPEAL_STATUSES:
+        raise HTTP(400, f"status must be one of: {', '.join(sorted(_APPEAL_STATUSES))}")
+
+    query = db.appeal
+    if status:
+        query = query.status == status
+
+    rows = db(query).select(orderby=~db.appeal.submitted_on)
+    return json.dumps([_serialize_appeal(row) for row in rows])
+
+
+@action("api/appeals/<appeal_id:int>", method=["PATCH"])
+def api_appeal_update(appeal_id):
+    """Update an appeal status. Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    row = db(db.appeal.id == appeal_id).select().first()
+    if not row:
+        raise HTTP(404, f"Appeal {appeal_id} not found")
+
+    body = _read_json_body()
+    status = (body.get("status") or "").strip().lower()
+    if status not in _APPEAL_STATUSES:
+        raise HTTP(400, f"status must be one of: {', '.join(sorted(_APPEAL_STATUSES))}")
+
+    db(db.appeal.id == appeal_id).update(status=status)
+    db.commit()
+    row = db(db.appeal.id == appeal_id).select().first()
+    return json.dumps(_serialize_appeal(row))
+
+
+@action("api/staff-applications", method=["GET"])
+def api_staff_applications_list():
+    """List staff applications. Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+    response.headers["Cache-Control"] = "no-store"
+
+    status = request.params.get("status", "pending").strip().lower()
+    if status and status not in _STAFF_APP_STATUSES:
+        raise HTTP(400, f"status must be one of: {', '.join(sorted(_STAFF_APP_STATUSES))}")
+
+    query = db.staff_application
+    if status:
+        query = query.status == status
+
+    rows = db(query).select(orderby=~db.staff_application.submitted_on)
+    return json.dumps([_serialize_staff_application(row) for row in rows])
+
+
+@action("api/staff-applications/<application_id:int>", method=["PATCH"])
+def api_staff_application_update(application_id):
+    """Update a staff application status. Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    row = db(db.staff_application.id == application_id).select().first()
+    if not row:
+        raise HTTP(404, f"Staff application {application_id} not found")
+
+    body = _read_json_body()
+    status = (body.get("status") or "").strip().lower()
+    if status not in _STAFF_APP_STATUSES:
+        raise HTTP(400, f"status must be one of: {', '.join(sorted(_STAFF_APP_STATUSES))}")
+
+    db(db.staff_application.id == application_id).update(status=status)
+    db.commit()
+    row = db(db.staff_application.id == application_id).select().first()
+    return json.dumps(_serialize_staff_application(row))

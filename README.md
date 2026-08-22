@@ -14,8 +14,8 @@ Built with **py4web** (Python), designed for up to 150 concurrent visitors, and 
 | 📦 Modpack page | CurseForge install guide |
 | 🗳️ Voting page | Links to vote sites with reward info |
 | 📋 Roadmap | DB-backed roadmap manageable by staff |
-| ⚖️ Ban / Mute Appeals | Form → spam check → Discord webhook vote |
-| 🎖️ Staff Applications | Helper (+ scalable roles) → Discord webhook |
+| ⚖️ Ban / Mute Appeals | Form → spam check → Discord webhook + Discord bot voting |
+| 🎖️ Staff Applications | Helper (+ scalable roles) → Discord webhook + Discord bot voting |
 | 🔍 SEO | Schema.org, Open Graph, Twitter Card, meta descriptions |
 
 ---
