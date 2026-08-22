@@ -14,6 +14,7 @@ URL layout (app is mounted at _default so paths are at site root):
 """
 
 import hashlib
+import hmac
 import json
 import datetime as _dt
 import logging
@@ -447,3 +448,145 @@ def apply_submitted():
 @action("<path:path>")
 def redirect_404(path=None):
     return redirect(URL("index"))
+
+
+# ── Roadmap management API ────────────────────────────────────────────────
+# These endpoints are called by the Discord bot.  Each request must carry
+# the secret key configured in settings.ROADMAP_API_SECRET as the value of
+# the "X-Roadmap-Secret" HTTP header.
+
+_VALID_STATUSES = {"planned", "in_progress", "completed", "cancelled"}
+
+
+def _check_roadmap_auth():
+    """Raise HTTP 403 if the request does not carry the correct API secret."""
+    secret = getattr(settings, "ROADMAP_API_SECRET", "")
+    if not secret:
+        raise HTTP(500, "Roadmap API secret not configured on the server.")
+    provided = request.headers.get("X-Roadmap-Secret", "")
+    if not provided or not hmac.compare_digest(provided, secret):
+        raise HTTP(403, "Forbidden")
+
+
+@action("api/roadmap", method=["GET"])
+def api_roadmap_list():
+    """Return all roadmap items as JSON (public, no auth required)."""
+    response.headers["Content-Type"] = "application/json"
+    response.headers["Cache-Control"] = "no-store"
+    items = db(db.roadmap_item).select(
+        orderby=db.roadmap_item.sort_order | db.roadmap_item.created_on
+    )
+    return json.dumps(
+        [
+            {
+                "id": row.id,
+                "title": row.title,
+                "description": row.description or "",
+                "status": row.status,
+                "sort_order": row.sort_order,
+            }
+            for row in items
+        ]
+    )
+
+
+@action("api/roadmap", method=["POST"])
+def api_roadmap_create():
+    """Create a new roadmap item.  Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    try:
+        body = json.loads(request.body.read())
+    except (ValueError, AttributeError):
+        raise HTTP(400, "Invalid JSON body")
+
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise HTTP(400, "title is required")
+
+    status = body.get("status", "planned").strip().lower()
+    if status not in _VALID_STATUSES:
+        raise HTTP(400, f"status must be one of: {', '.join(sorted(_VALID_STATUSES))}")
+
+    description = (body.get("description") or "").strip()
+    sort_order = body.get("sort_order", 0)
+    try:
+        sort_order = int(sort_order)
+    except (TypeError, ValueError):
+        sort_order = 0
+
+    new_id = db.roadmap_item.insert(
+        title=title,
+        description=description,
+        status=status,
+        sort_order=sort_order,
+    )
+    db.commit()
+    return json.dumps({"id": new_id, "title": title, "status": status})
+
+
+@action("api/roadmap/<item_id:int>", method=["PATCH"])
+def api_roadmap_update(item_id):
+    """Update an existing roadmap item.  Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    row = db(db.roadmap_item.id == item_id).select().first()
+    if not row:
+        raise HTTP(404, f"Roadmap item {item_id} not found")
+
+    try:
+        body = json.loads(request.body.read())
+    except (ValueError, AttributeError):
+        raise HTTP(400, "Invalid JSON body")
+
+    updates = {}
+    if "title" in body:
+        title = (body["title"] or "").strip()
+        if not title:
+            raise HTTP(400, "title cannot be empty")
+        updates["title"] = title
+    if "description" in body:
+        updates["description"] = (body["description"] or "").strip()
+    if "status" in body:
+        status = body["status"].strip().lower()
+        if status not in _VALID_STATUSES:
+            raise HTTP(400, f"status must be one of: {', '.join(sorted(_VALID_STATUSES))}")
+        updates["status"] = status
+    if "sort_order" in body:
+        try:
+            updates["sort_order"] = int(body["sort_order"])
+        except (TypeError, ValueError):
+            raise HTTP(400, "sort_order must be an integer")
+
+    if not updates:
+        raise HTTP(400, "No valid fields provided for update")
+
+    db(db.roadmap_item.id == item_id).update(**updates)
+    db.commit()
+    row = db(db.roadmap_item.id == item_id).select().first()
+    return json.dumps(
+        {
+            "id": row.id,
+            "title": row.title,
+            "description": row.description or "",
+            "status": row.status,
+            "sort_order": row.sort_order,
+        }
+    )
+
+
+@action("api/roadmap/<item_id:int>", method=["DELETE"])
+def api_roadmap_delete(item_id):
+    """Delete a roadmap item.  Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    row = db(db.roadmap_item.id == item_id).select().first()
+    if not row:
+        raise HTTP(404, f"Roadmap item {item_id} not found")
+
+    db(db.roadmap_item.id == item_id).delete()
+    db.commit()
+    return json.dumps({"deleted": item_id})

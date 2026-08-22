@@ -13,6 +13,20 @@ DISCORD_APPEALS_WEBHOOK = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
 # Discord webhook for staff applications channel
 DISCORD_STAFFAPPS_WEBHOOK = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
 
+# ── Discord bot / Roadmap management ─────────────────────────────────────
+# Bot token for the roadmap-management Discord bot
+DISCORD_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+
+# Discord role names (case-insensitive) allowed to run roadmap commands
+DISCORD_ROADMAP_ALLOWED_ROLES = ["Admin", "Owner", "Staff Manager"]
+
+# Shared secret between the site and the Discord bot (must match in both places)
+# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+ROADMAP_API_SECRET = "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
+
+# Base URL of the website the bot should call (no trailing slash)
+SITE_BASE_URL = "https://cobblemonconquest.com"
+
 # Override server/store URLs if needed
 # SERVER_IP = "play.cobblemonconquest.com"
 # STORE_URL  = "https://store.cobblemonconquest.com"
