@@ -1,5 +1,5 @@
 """
-Configuration for the Cobblemon Conquest roadmap Discord bot.
+Configuration for the Cobblemon Conquest Discord management bot.
 
 Copy this file to config.py and fill in your values.
 config.py is git-ignored – never commit real secrets.
@@ -17,6 +17,6 @@ SITE_BASE_URL: str = "https://cobblemonconquest.com"
 # Shared secret – must match ROADMAP_API_SECRET in the site's settings_private.py
 ROADMAP_API_SECRET: str = "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
 
-# Discord role names (case-insensitive) whose members may use roadmap commands.
+# Discord role names (case-insensitive) whose members may use bot commands.
 # Members with ANY of these roles are granted access.
 ALLOWED_ROLES: list[str] = ["Admin", "Owner", "Staff Manager"]
