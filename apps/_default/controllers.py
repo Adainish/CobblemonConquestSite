@@ -759,9 +759,28 @@ def api_appeal_update(appeal_id):
     if status not in _APPEAL_STATUSES:
         raise HTTP(400, f"status must be one of: {', '.join(sorted(_APPEAL_STATUSES))}")
 
+    previous_status = row.status
     db(db.appeal.id == appeal_id).update(status=status)
     db.commit()
     row = db(db.appeal.id == appeal_id).select().first()
+
+    # Notify the appellant via Discord DM when their appeal is approved.
+    if status == "approved" and previous_status != "approved":
+        appeal_label = {"ban": "ban", "mute": "mute", "discord": "Discord"}.get(
+            row.appeal_type, row.appeal_type
+        )
+        _send_discord_dm(
+            settings.DISCORD_BOT_TOKEN,
+            row.discord_username,
+            (
+                f"✅ Good news, **{row.minecraft_username}**! "
+                f"Your {appeal_label} appeal (#{appeal_id}) on Cobblemon Conquest has been "
+                f"**approved**. You are welcome back – see you in-game! "
+                f"If you have any questions, join us on Discord: "
+                f"{settings.DISCORD_INVITE_URL}"
+            ),
+        )
+
     return json.dumps(_serialize_appeal(row))
 
 
