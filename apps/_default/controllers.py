@@ -6,6 +6,7 @@ URL layout (app is mounted at _default so paths are at site root):
   /modpack           → modpack info
   /voting            → vote links
   /roadmap           → development roadmap
+  /faq               → frequently asked questions
   /appeals           → appeal type selection
   /appeals/ban       → ban appeal form / POST handler
   /appeals/mute      → mute appeal form / POST handler
@@ -308,6 +309,18 @@ def voting():
 def roadmap():
     items = db(db.roadmap_item).select(orderby=db.roadmap_item.sort_order | db.roadmap_item.created_on)
     return _ctx(items=items)
+
+
+@action("faq")
+@action.uses("faq.html", db, T)
+def faq():
+    rows = db(db.faq_item).select(orderby=db.faq_item.sort_order | db.faq_item.created_on)
+    # Group by category, preserving insertion order
+    categories = {}
+    for row in rows:
+        cat = row.category or "General"
+        categories.setdefault(cat, []).append(row)
+    return _ctx(categories=categories)
 
 
 # ── appeals ───────────────────────────────────────────────────────────────

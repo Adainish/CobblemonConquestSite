@@ -1,0 +1,43 @@
+[[extend 'layout.html']]
+[[block page_title]]FAQ[[end]]
+[[block page_description]]Frequently asked questions about Cobblemon Conquest – server info, modpack, rules, and more.[[end]]
+
+<main>
+  <section class="hero hero-faq" style="padding:4rem 2rem 3rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">❓</div>
+    <h1 class="hero-title" style="font-size:clamp(1.8rem,4vw,3rem);">Frequently Asked Questions</h1>
+    <p class="hero-subtitle">Got questions? We've got answers.</p>
+  </section>
+
+  <section class="section" aria-labelledby="faq-heading">
+    <h2 class="section-title" id="faq-heading">FAQ</h2>
+    <hr class="divider" />
+
+    [[if categories:]]
+    [[for category, items in categories.items():]]
+    <div class="faq-category" style="margin-bottom:2.5rem;">
+      <h3 style="margin-bottom:1rem;color:var(--gold,#c9a84c);">[[=category]]</h3>
+      <dl class="faq-list">
+        [[for item in items:]]
+        <div class="faq-item" style="margin-bottom:1.25rem;">
+          <dt class="faq-question" style="font-weight:700;margin-bottom:.35rem;">[[=item.question]]</dt>
+          <dd class="faq-answer" style="margin:0;opacity:.85;line-height:1.6;">[[=item.answer]]</dd>
+        </div>
+        [[pass]]
+      </dl>
+    </div>
+    [[pass]]
+    [[else:]]
+    <div style="text-align:center;padding:3rem;color:rgba(245,239,224,.5);">
+      <p style="font-size:1.5rem;margin-bottom:.5rem;">🏯</p>
+      <p>No FAQs yet – check back soon!</p>
+    </div>
+    [[pass]]
+
+    <p style="text-align:center;margin-top:3rem;color:rgba(245,239,224,.5);font-size:.88rem;">
+      Still have questions? Ask in our
+      <a href="[[=discord_url]]" target="_blank" rel="noopener">Discord</a>!
+    </p>
+  </section>
+</main>
