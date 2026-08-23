@@ -1,5 +1,5 @@
 """
-Cobblemon Conquest – roadmap and moderation management Discord bot.
+Cobblemon Conquest – roadmap, FAQ, and moderation management Discord bot.
 
 Slash commands (all require a role listed in config.ALLOWED_ROLES):
   /roadmap list                     – list all roadmap items
@@ -8,6 +8,12 @@ Slash commands (all require a role listed in config.ALLOWED_ROLES):
   /roadmap edit <id> [title] [description] [status] [sort_order]
                                     – edit an existing item
   /roadmap remove <id>              – delete an item
+  /faq list                         – list all FAQ items
+  /faq add <question> <answer> [category] [sort_order]
+                                    – add a new FAQ entry
+  /faq edit <id> [question] [answer] [category] [sort_order]
+                                    – edit an existing FAQ entry
+  /faq remove <id>                  – delete a FAQ entry
   /appeals list [status]            – list punishment appeals by status
   /appeals vote <id> <decision>     – set appeal outcome
   /appeals force-accept <id>        – force set appeal to approved
@@ -51,33 +57,43 @@ def _headers() -> dict[str, str]:
     }
 
 
+async def _parse_response(resp) -> dict | list:
+    """Return parsed JSON body, or a dict with an 'error' key if the response
+    is not JSON (e.g. an HTML error page returned by the web framework)."""
+    content_type = resp.headers.get("Content-Type", "")
+    if "application/json" in content_type:
+        return await resp.json()
+    text = await resp.text()
+    return {"error": text[:300]}
+
+
 async def _get(path: str) -> tuple[int, dict | list]:
     """Send a GET request to the site API and return (status_code, body)."""
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=_headers()) as resp:
-            return resp.status, await resp.json()
+            return resp.status, await _parse_response(resp)
 
 
 async def _post(path: str, payload: dict) -> tuple[int, dict]:
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload, headers=_headers()) as resp:
-            return resp.status, await resp.json()
+            return resp.status, await _parse_response(resp)
 
 
 async def _patch(path: str, payload: dict) -> tuple[int, dict]:
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.patch(url, json=payload, headers=_headers()) as resp:
-            return resp.status, await resp.json()
+            return resp.status, await _parse_response(resp)
 
 
 async def _delete(path: str) -> tuple[int, dict]:
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.delete(url, headers=_headers()) as resp:
-            return resp.status, await resp.json()
+            return resp.status, await _parse_response(resp)
 
 
 # ── Permission guard ──────────────────────────────────────────────────────
@@ -302,6 +318,173 @@ async def roadmap_remove(interaction: discord.Interaction, item_id: int) -> None
 
 
 bot.tree.add_command(roadmap_group)
+
+
+# ── /faq command group ─────────────────────────────────────────────────────
+
+faq_group = app_commands.Group(
+    name="faq",
+    description="Manage the Cobblemon Conquest FAQ page.",
+)
+
+
+@faq_group.command(name="list", description="List all current FAQ items.")
+async def faq_list(interaction: discord.Interaction) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use FAQ commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    status_code, body = await _get("api/faq")
+
+    if status_code != 200 or not isinstance(body, list):
+        await interaction.followup.send(
+            f"⚠️ Failed to fetch FAQ items (HTTP {status_code}).", ephemeral=True
+        )
+        return
+
+    if not body:
+        await interaction.followup.send("The FAQ is empty.", ephemeral=True)
+        return
+
+    lines = [f"**FAQ Items** ({len(body)} total)\n"]
+    for item in body:
+        lines.append(
+            f"**#{item['id']}** [{item['category']}] {_shorten(item['question'], 80)}\n"
+            f"  {_shorten(item['answer'], 100)}"
+        )
+    await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+
+@faq_group.command(name="add", description="Add a new FAQ entry.")
+@app_commands.describe(
+    question="The question to display.",
+    answer="The answer to the question.",
+    category="Category grouping (default: General).",
+    sort_order="Display order (lower numbers appear first).",
+)
+async def faq_add(
+    interaction: discord.Interaction,
+    question: str,
+    answer: str,
+    category: str = "General",
+    sort_order: int = 0,
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use FAQ commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    payload = {
+        "question": question,
+        "answer": answer,
+        "category": category,
+        "sort_order": sort_order,
+    }
+    status_code, body = await _post("api/faq", payload)
+
+    if status_code == 200:
+        await interaction.followup.send(
+            f"✅ Added FAQ item **#{body['id']}**: {_shorten(body['question'], 80)}",
+            ephemeral=True,
+        )
+    else:
+        error = body.get("message") or body.get("error") or str(body)
+        await interaction.followup.send(
+            f"⚠️ Failed to add FAQ item (HTTP {status_code}): {error}", ephemeral=True
+        )
+
+
+@faq_group.command(name="edit", description="Edit an existing FAQ entry.")
+@app_commands.describe(
+    item_id="The numeric ID of the FAQ item to edit.",
+    question="New question text (leave blank to keep current).",
+    answer="New answer text (leave blank to keep current).",
+    category="New category (leave blank to keep current).",
+    sort_order="New sort order (use -1 to keep current).",
+)
+async def faq_edit(
+    interaction: discord.Interaction,
+    item_id: int,
+    question: str = "",
+    answer: str = "",
+    category: str = "",
+    sort_order: int = -1,
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use FAQ commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    payload: dict = {}
+    if question:
+        payload["question"] = question
+    if answer:
+        payload["answer"] = answer
+    if category:
+        payload["category"] = category
+    if sort_order != -1:
+        payload["sort_order"] = sort_order
+
+    if not payload:
+        await interaction.followup.send(
+            "ℹ️ Nothing to update – provide at least one field to change.", ephemeral=True
+        )
+        return
+
+    status_code, body = await _patch(f"api/faq/{item_id}", payload)
+
+    if status_code == 200:
+        await interaction.followup.send(
+            f"✅ Updated FAQ item **#{body['id']}**: {_shorten(body['question'], 80)}",
+            ephemeral=True,
+        )
+    elif status_code == 404:
+        await interaction.followup.send(
+            f"⚠️ FAQ item #{item_id} not found.", ephemeral=True
+        )
+    else:
+        error = body.get("message") or body.get("error") or str(body)
+        await interaction.followup.send(
+            f"⚠️ Failed to update FAQ item (HTTP {status_code}): {error}", ephemeral=True
+        )
+
+
+@faq_group.command(name="remove", description="Remove a FAQ entry.")
+@app_commands.describe(item_id="The numeric ID of the FAQ item to remove.")
+async def faq_remove(interaction: discord.Interaction, item_id: int) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use FAQ commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    status_code, body = await _delete(f"api/faq/{item_id}")
+
+    if status_code == 200:
+        await interaction.followup.send(
+            f"✅ Deleted FAQ item **#{body['deleted']}**.", ephemeral=True
+        )
+    elif status_code == 404:
+        await interaction.followup.send(
+            f"⚠️ FAQ item #{item_id} not found.", ephemeral=True
+        )
+    else:
+        error = body.get("message") or body.get("error") or str(body)
+        await interaction.followup.send(
+            f"⚠️ Failed to delete FAQ item (HTTP {status_code}): {error}", ephemeral=True
+        )
+
+
+bot.tree.add_command(faq_group)
 
 
 # ── /appeals command group ─────────────────────────────────────────────────

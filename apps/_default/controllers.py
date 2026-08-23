@@ -6,6 +6,7 @@ URL layout (app is mounted at _default so paths are at site root):
   /modpack           → modpack info
   /voting            → vote links
   /roadmap           → development roadmap
+  /faq               → frequently asked questions
   /appeals           → appeal type selection
   /appeals/ban       → ban appeal form / POST handler
   /appeals/mute      → mute appeal form / POST handler
@@ -308,6 +309,18 @@ def voting():
 def roadmap():
     items = db(db.roadmap_item).select(orderby=db.roadmap_item.sort_order | db.roadmap_item.created_on)
     return _ctx(items=items)
+
+
+@action("faq")
+@action.uses("faq.html", db, T)
+def faq():
+    rows = db(db.faq_item).select(orderby=db.faq_item.sort_order | db.faq_item.created_on)
+    # Group by category, preserving insertion order
+    categories = {}
+    for row in rows:
+        cat = row.category or "General"
+        categories.setdefault(cat, []).append(row)
+    return _ctx(categories=categories)
 
 
 # ── appeals ───────────────────────────────────────────────────────────────
@@ -838,3 +851,117 @@ def api_staff_application_update(application_id):
         )
 
     return json.dumps(_serialize_staff_application(row))
+
+
+# ── FAQ management API ────────────────────────────────────────────────────
+# Called by the Discord bot.  Requires the X-Roadmap-Secret header.
+
+
+def _serialize_faq_item(row) -> dict:
+    return {
+        "id": row.id,
+        "question": row.question,
+        "answer": row.answer or "",
+        "category": row.category or "General",
+        "sort_order": row.sort_order,
+    }
+
+
+@action("api/faq", method=["GET"])
+def api_faq_list():
+    """Return all FAQ items as JSON (public, no auth required)."""
+    response.headers["Content-Type"] = "application/json"
+    response.headers["Cache-Control"] = "no-store"
+    items = db(db.faq_item).select(
+        orderby=db.faq_item.sort_order | db.faq_item.created_on
+    )
+    return json.dumps([_serialize_faq_item(row) for row in items])
+
+
+@action("api/faq", method=["POST"])
+def api_faq_create():
+    """Create a new FAQ item.  Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    body = _read_json_body()
+
+    question = (body.get("question") or "").strip()
+    if not question:
+        raise HTTP(400, "question is required")
+
+    answer = (body.get("answer") or "").strip()
+    if not answer:
+        raise HTTP(400, "answer is required")
+
+    category = (body.get("category") or "General").strip()
+    sort_order = body.get("sort_order", 0)
+    try:
+        sort_order = int(sort_order)
+    except (TypeError, ValueError):
+        sort_order = 0
+
+    new_id = db.faq_item.insert(
+        question=question,
+        answer=answer,
+        category=category,
+        sort_order=sort_order,
+    )
+    db.commit()
+    row = db(db.faq_item.id == new_id).select().first()
+    return json.dumps(_serialize_faq_item(row))
+
+
+@action("api/faq/<item_id:int>", method=["PATCH"])
+def api_faq_update(item_id):
+    """Update an existing FAQ item.  Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    row = db(db.faq_item.id == item_id).select().first()
+    if not row:
+        raise HTTP(404, f"FAQ item {item_id} not found")
+
+    body = _read_json_body()
+
+    updates = {}
+    if "question" in body:
+        question = (body["question"] or "").strip()
+        if not question:
+            raise HTTP(400, "question cannot be empty")
+        updates["question"] = question
+    if "answer" in body:
+        answer = (body["answer"] or "").strip()
+        if not answer:
+            raise HTTP(400, "answer cannot be empty")
+        updates["answer"] = answer
+    if "category" in body:
+        updates["category"] = (body["category"] or "General").strip()
+    if "sort_order" in body:
+        try:
+            updates["sort_order"] = int(body["sort_order"])
+        except (TypeError, ValueError):
+            raise HTTP(400, "sort_order must be an integer")
+
+    if not updates:
+        raise HTTP(400, "No valid fields provided for update")
+
+    db(db.faq_item.id == item_id).update(**updates)
+    db.commit()
+    row = db(db.faq_item.id == item_id).select().first()
+    return json.dumps(_serialize_faq_item(row))
+
+
+@action("api/faq/<item_id:int>", method=["DELETE"])
+def api_faq_delete(item_id):
+    """Delete a FAQ item.  Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    row = db(db.faq_item.id == item_id).select().first()
+    if not row:
+        raise HTTP(404, f"FAQ item {item_id} not found")
+
+    db(db.faq_item.id == item_id).delete()
+    db.commit()
+    return json.dumps({"deleted": item_id})

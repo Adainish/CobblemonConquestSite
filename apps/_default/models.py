@@ -58,4 +58,14 @@ db.define_table(
     Field("ip_hash", default=""),
 )
 
+# ── FAQ ────────────────────────────────────────────────────────────────────
+db.define_table(
+    "faq_item",
+    Field("question", requires=IS_NOT_EMPTY()),
+    Field("answer", "text", requires=IS_NOT_EMPTY()),
+    Field("category", default="General"),
+    Field("sort_order", "integer", default=0),
+    Field("created_on", "datetime", default=_now),
+)
+
 db.commit()
