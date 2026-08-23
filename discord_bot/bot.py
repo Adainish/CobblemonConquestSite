@@ -57,33 +57,43 @@ def _headers() -> dict[str, str]:
     }
 
 
+async def _parse_response(resp) -> dict | list:
+    """Return parsed JSON body, or a dict with an 'error' key if the response
+    is not JSON (e.g. an HTML error page returned by the web framework)."""
+    content_type = resp.headers.get("Content-Type", "")
+    if "application/json" in content_type:
+        return await resp.json()
+    text = await resp.text()
+    return {"error": text[:300]}
+
+
 async def _get(path: str) -> tuple[int, dict | list]:
     """Send a GET request to the site API and return (status_code, body)."""
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=_headers()) as resp:
-            return resp.status, await resp.json()
+            return resp.status, await _parse_response(resp)
 
 
 async def _post(path: str, payload: dict) -> tuple[int, dict]:
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload, headers=_headers()) as resp:
-            return resp.status, await resp.json()
+            return resp.status, await _parse_response(resp)
 
 
 async def _patch(path: str, payload: dict) -> tuple[int, dict]:
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.patch(url, json=payload, headers=_headers()) as resp:
-            return resp.status, await resp.json()
+            return resp.status, await _parse_response(resp)
 
 
 async def _delete(path: str) -> tuple[int, dict]:
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.delete(url, headers=_headers()) as resp:
-            return resp.status, await resp.json()
+            return resp.status, await _parse_response(resp)
 
 
 # ── Permission guard ──────────────────────────────────────────────────────
