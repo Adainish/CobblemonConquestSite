@@ -226,3 +226,41 @@ class TestRoadmapChangeNotifications:
         ].first.screenshot.assert_awaited_once_with(path=screenshot_path)
         fake_context.browser.page.locators["main"].first.screenshot.assert_not_awaited()
         os.unlink(screenshot_path)
+
+    def test_clear_roadmap_notification_channel_uses_purge(self, bot_module):
+        channel = mock.MagicMock()
+        channel.purge = mock.AsyncMock()
+
+        asyncio.run(bot_module._clear_roadmap_notification_channel(channel))
+
+        channel.purge.assert_awaited_once_with(limit=None)
+
+    def test_send_roadmap_change_notification_clears_channel_before_posting(
+        self, bot_module, monkeypatch
+    ):
+        channel = mock.MagicMock()
+        channel.send = mock.AsyncMock()
+        clear_channel = mock.AsyncMock()
+
+        monkeypatch.setattr(
+            bot_module,
+            "_resolve_roadmap_notification_channel",
+            mock.AsyncMock(return_value=channel),
+        )
+        monkeypatch.setattr(
+            bot_module,
+            "_capture_roadmap_screenshot",
+            mock.AsyncMock(return_value=None),
+        )
+        monkeypatch.setattr(bot_module, "_clear_roadmap_notification_channel", clear_channel)
+
+        asyncio.run(
+            bot_module._send_roadmap_change_notification(
+                mock.sentinel.client,
+                "updated",
+                {"id": 3, "title": "Warzones", "status": "completed"},
+            )
+        )
+
+        clear_channel.assert_awaited_once_with(channel)
+        channel.send.assert_awaited_once()

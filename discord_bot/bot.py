@@ -247,6 +247,29 @@ async def _resolve_roadmap_notification_channel(
     return fetched_channel if hasattr(fetched_channel, "send") else None
 
 
+async def _clear_roadmap_notification_channel(
+    channel: discord.abc.Messageable,
+) -> None:
+    purge = getattr(channel, "purge", None)
+    if callable(purge):
+        try:
+            await purge(limit=None)
+            return
+        except discord.DiscordException as exc:
+            logger.warning("Failed to purge roadmap notification channel: %s", exc)
+
+    history = getattr(channel, "history", None)
+    if not callable(history):
+        return
+
+    try:
+        async for message in history(limit=None):
+            with contextlib.suppress(discord.DiscordException):
+                await message.delete()
+    except discord.DiscordException as exc:
+        logger.warning("Failed to clear roadmap notification channel history: %s", exc)
+
+
 async def _send_roadmap_change_notification(
     client: discord.Client, action: str, item: dict
 ) -> None:
@@ -257,6 +280,7 @@ async def _send_roadmap_change_notification(
     message = _format_roadmap_change_message(action, item)
     screenshot_path = await _capture_roadmap_screenshot()
     try:
+        await _clear_roadmap_notification_channel(channel)
         if screenshot_path:
             await channel.send(
                 content=message,
