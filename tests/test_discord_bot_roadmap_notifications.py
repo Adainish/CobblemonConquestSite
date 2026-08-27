@@ -162,3 +162,67 @@ class TestRoadmapChangeNotifications:
         schedule_notification.assert_called_once_with(
             interaction.client, "removed", deleted_item
         )
+
+    def test_capture_roadmap_screenshot_uses_inner_main_when_present(
+        self, bot_module, monkeypatch
+    ):
+        class FakeTarget:
+            def __init__(self):
+                async def _screenshot(*, path):
+                    with open(path, "wb") as handle:
+                        handle.write(b"png")
+
+                self.screenshot = mock.AsyncMock(side_effect=_screenshot)
+
+        class FakeLocator:
+            def __init__(self, count):
+                self._count = count
+                self.first = FakeTarget()
+
+            async def count(self):
+                return self._count
+
+        class FakePage:
+            def __init__(self):
+                self.goto = mock.AsyncMock()
+                self.locators = {
+                    "main main": FakeLocator(1),
+                    "main": FakeLocator(2),
+                }
+
+            def locator(self, selector):
+                return self.locators[selector]
+
+        class FakeBrowser:
+            def __init__(self):
+                self.page = FakePage()
+                self.new_page = mock.AsyncMock(return_value=self.page)
+                self.close = mock.AsyncMock()
+
+        class FakePlaywrightContext:
+            def __init__(self):
+                self.browser = FakeBrowser()
+                self.chromium = types.SimpleNamespace(
+                    launch=mock.AsyncMock(return_value=self.browser)
+                )
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        fake_async_api = types.ModuleType("playwright.async_api")
+        fake_async_api.Error = Exception
+        fake_context = FakePlaywrightContext()
+        fake_async_api.async_playwright = lambda: fake_context
+        monkeypatch.setitem(sys.modules, "playwright.async_api", fake_async_api)
+
+        screenshot_path = asyncio.run(bot_module._capture_roadmap_screenshot())
+
+        assert os.path.exists(screenshot_path)
+        fake_context.browser.page.locators[
+            "main main"
+        ].first.screenshot.assert_awaited_once_with(path=screenshot_path)
+        fake_context.browser.page.locators["main"].first.screenshot.assert_not_awaited()
+        os.unlink(screenshot_path)

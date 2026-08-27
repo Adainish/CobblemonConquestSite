@@ -211,7 +211,9 @@ async def _capture_roadmap_screenshot() -> str | None:
             browser = await playwright.chromium.launch()
             page = await browser.new_page(viewport={"width": 1440, "height": 2200})
             await page.goto(_roadmap_url(), wait_until="networkidle")
-            await page.locator("main").screenshot(path=screenshot.name)
+            inner_main = page.locator("main main")
+            target = inner_main.first if await inner_main.count() else page.locator("main").first
+            await target.screenshot(path=screenshot.name)
     except (PlaywrightError, OSError) as exc:
         logger.warning("Failed to capture roadmap screenshot: %s", exc)
         with contextlib.suppress(OSError):
