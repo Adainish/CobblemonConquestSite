@@ -16,6 +16,7 @@ URL layout (app is mounted at _default so paths are at site root):
 
 import hashlib
 import hmac
+import html
 import json
 import datetime as _dt
 import logging
@@ -49,6 +50,11 @@ def _ctx(**extra) -> dict:
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
+
+def _sanitize(value: str) -> str:
+    """Strip leading/trailing whitespace and HTML-escape a form field value."""
+    return html.escape(value.strip())
+
 
 def _hash_ip(ip: str) -> str:
     """One-way hash of an IP address for spam detection without storing raw IPs."""
@@ -417,7 +423,7 @@ def appeal_form(appeal_type="ban"):
     form_data = {}
 
     if request.method == "POST":
-        form_data = {k: v.strip() for k, v in request.forms.items()}
+        form_data = {k: _sanitize(v) for k, v in request.forms.items()}
         minecraft_username = form_data.get("minecraft_username", "")
         discord_username = form_data.get("discord_username", "")
         email = form_data.get("email", "")
@@ -538,7 +544,7 @@ def apply_form(role="helper"):
     form_data = {}
 
     if request.method == "POST":
-        form_data = {k: v.strip() for k, v in request.forms.items()}
+        form_data = {k: _sanitize(v) for k, v in request.forms.items()}
         minecraft_username = form_data.get("minecraft_username", "")
         discord_username = form_data.get("discord_username", "")
         email = form_data.get("email", "")
