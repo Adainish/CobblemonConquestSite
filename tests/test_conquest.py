@@ -310,3 +310,19 @@ class TestHelpers:
         assert ctx["items"] == []
         assert ctx["role"] == "Helper"
         assert "store_url" in ctx
+
+    def test_sanitize_escapes_html(self):
+        from conquest.controllers import _sanitize
+        assert _sanitize("<script>alert('xss')</script>") == "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
+
+    def test_sanitize_strips_whitespace(self):
+        from conquest.controllers import _sanitize
+        assert _sanitize("  hello  ") == "hello"
+
+    def test_sanitize_ampersand(self):
+        from conquest.controllers import _sanitize
+        assert _sanitize("Tom & Jerry") == "Tom &amp; Jerry"
+
+    def test_sanitize_plain_text_unchanged(self):
+        from conquest.controllers import _sanitize
+        assert _sanitize("Steve") == "Steve"
