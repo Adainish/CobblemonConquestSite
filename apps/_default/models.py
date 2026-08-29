@@ -4,7 +4,7 @@ Database models for Cobblemon Conquest.
 
 import datetime
 
-from pydal.validators import IS_IN_SET, IS_NOT_EMPTY, IS_LENGTH
+from pydal.validators import IS_EMAIL, IS_IN_SET, IS_NOT_EMPTY, IS_LENGTH
 
 from py4web import Field
 
@@ -29,6 +29,7 @@ db.define_table(
     Field("appeal_type", requires=IS_IN_SET(["ban", "mute", "discord"])),
     Field("minecraft_username", requires=[IS_NOT_EMPTY(), IS_LENGTH(maxsize=64)]),
     Field("discord_username", requires=[IS_NOT_EMPTY(), IS_LENGTH(maxsize=100)]),
+    Field("email", requires=[IS_NOT_EMPTY(), IS_EMAIL(), IS_LENGTH(maxsize=255)]),
     Field("reason", "text", requires=IS_NOT_EMPTY()),
     Field("punishment_reason", "text"),
     Field("why_unban", "text", requires=IS_NOT_EMPTY()),
@@ -45,6 +46,7 @@ db.define_table(
     Field("role", requires=IS_NOT_EMPTY()),
     Field("minecraft_username", requires=[IS_NOT_EMPTY(), IS_LENGTH(maxsize=64)]),
     Field("discord_username", requires=[IS_NOT_EMPTY(), IS_LENGTH(maxsize=100)]),
+    Field("email", requires=[IS_NOT_EMPTY(), IS_EMAIL(), IS_LENGTH(maxsize=255)]),
     Field("age", "integer"),
     Field("timezone", requires=IS_NOT_EMPTY()),
     Field("hours_per_week", "integer"),

@@ -19,8 +19,10 @@ import hmac
 import json
 import datetime as _dt
 import logging
+import smtplib
 import socket
 import struct
+from email.message import EmailMessage
 
 import requests
 
@@ -180,6 +182,51 @@ def _send_discord_dm(bot_token: str, discord_username: str, message: str):
 
     except Exception as exc:
         logger.warning("Discord DM failed: %s", exc)
+
+
+def _send_email(recipient: str, subject: str, body: str) -> bool:
+    """Send a plain text email using SMTP settings; return True on success."""
+    smtp_server = getattr(settings, "SMTP_SERVER", None)
+    sender = getattr(settings, "SMTP_SENDER", "")
+    if not (smtp_server and sender and recipient and subject and body):
+        return False
+
+    host = smtp_server
+    port = 465 if getattr(settings, "SMTP_SSL", False) else 25
+    if ":" in smtp_server:
+        host, port_text = smtp_server.rsplit(":", 1)
+        try:
+            port = int(port_text)
+        except ValueError:
+            logger.warning("SMTP_SERVER has invalid port: %s", smtp_server)
+            return False
+
+    message = EmailMessage()
+    message["From"] = sender
+    message["To"] = recipient
+    message["Subject"] = subject
+    message.set_content(body)
+
+    login = getattr(settings, "SMTP_LOGIN", "") or ""
+    username = ""
+    password = ""
+    if ":" in login:
+        username, password = login.split(":", 1)
+    elif login:
+        username = login
+
+    smtp_cls = smtplib.SMTP_SSL if getattr(settings, "SMTP_SSL", False) else smtplib.SMTP
+    try:
+        with smtp_cls(host, port, timeout=10) as server:
+            if getattr(settings, "SMTP_TLS", False) and not getattr(settings, "SMTP_SSL", False):
+                server.starttls()
+            if username:
+                server.login(username, password)
+            server.send_message(message)
+        return True
+    except Exception as exc:
+        logger.warning("Email send failed for %s: %s", recipient, exc)
+        return False
 
 
 def _resolve_mc_host(host: str, port: int) -> tuple[str, int]:
@@ -373,6 +420,7 @@ def appeal_form(appeal_type="ban"):
         form_data = {k: v.strip() for k, v in request.forms.items()}
         minecraft_username = form_data.get("minecraft_username", "")
         discord_username = form_data.get("discord_username", "")
+        email = form_data.get("email", "")
         reason = form_data.get("reason", "")
         punishment_reason = form_data.get("punishment_reason", "")
         why_unban = form_data.get("why_unban", "")
@@ -382,6 +430,10 @@ def appeal_form(appeal_type="ban"):
             errors["minecraft_username"] = "Minecraft username is required."
         if not discord_username:
             errors["discord_username"] = "Discord username is required."
+        if not email:
+            errors["email"] = "Email is required."
+        elif "@" not in email:
+            errors["email"] = "Please enter a valid email address."
         if not why_unban:
             suffix = {"ban": "banned", "mute": "muted"}.get(appeal_type, "punished")
             errors["why_unban"] = "Please explain why you should be un-" + suffix + "."
@@ -408,6 +460,7 @@ def appeal_form(appeal_type="ban"):
                     appeal_type=appeal_type,
                     minecraft_username=minecraft_username,
                     discord_username=discord_username,
+                    email=email,
                     reason=reason,
                     punishment_reason=punishment_reason,
                     why_unban=why_unban,
@@ -435,6 +488,17 @@ def appeal_form(appeal_type="ban"):
                     db(db.appeal.id == appeal_id).update(discord_message_id=msg_id)
                     _add_discord_reactions(settings.DISCORD_APPEALS_WEBHOOK, msg_id, ["✅", "❌", "🔒"])
                     db.commit()
+
+                _send_email(
+                    email,
+                    f"Cobblemon Conquest: {appeal_type.title()} appeal received (#{appeal_id})",
+                    (
+                        f"Hi {minecraft_username},\n\n"
+                        f"We received your {appeal_type} appeal (ID #{appeal_id}). "
+                        "Our staff team will review it and contact you once a decision is made.\n\n"
+                        "Thanks,\nCobblemon Conquest Staff"
+                    ),
+                )
 
                 redirect(URL("appeal_submitted", vars={"type": appeal_type}))
 
@@ -477,6 +541,7 @@ def apply_form(role="helper"):
         form_data = {k: v.strip() for k, v in request.forms.items()}
         minecraft_username = form_data.get("minecraft_username", "")
         discord_username = form_data.get("discord_username", "")
+        email = form_data.get("email", "")
         why_apply = form_data.get("why_apply", "")
         timezone = form_data.get("timezone", "")
 
@@ -487,6 +552,10 @@ def apply_form(role="helper"):
             errors["minecraft_username"] = "Minecraft username is required."
         if not discord_username:
             errors["discord_username"] = "Discord username is required."
+        if not email:
+            errors["email"] = "Email is required."
+        elif "@" not in email:
+            errors["email"] = "Please enter a valid email address."
         if not why_apply:
             errors["why_apply"] = "Please explain why you want to be a " + role_title + "."
         if not timezone:
@@ -529,6 +598,7 @@ def apply_form(role="helper"):
                     role=role_title,
                     minecraft_username=minecraft_username,
                     discord_username=discord_username,
+                    email=email,
                     age=age,
                     timezone=timezone,
                     hours_per_week=hours,
@@ -560,6 +630,17 @@ def apply_form(role="helper"):
                     db(db.staff_application.id == app_id).update(discord_message_id=msg_id)
                     _add_discord_reactions(settings.DISCORD_STAFFAPPS_WEBHOOK, msg_id, ["✅", "❌", "⏸️"])
                     db.commit()
+
+                _send_email(
+                    email,
+                    f"Cobblemon Conquest: {role_title} application received (#{app_id})",
+                    (
+                        f"Hi {minecraft_username},\n\n"
+                        f"We received your application for the {role_title} role (ID #{app_id}). "
+                        "Our leadership team will review it and contact you once a decision is made.\n\n"
+                        "Thanks,\nCobblemon Conquest Staff"
+                    ),
+                )
 
                 redirect(URL("apply_submitted", vars={"role": role_title}))
 
@@ -617,6 +698,7 @@ def _serialize_appeal(row) -> dict:
         "appeal_type": row.appeal_type,
         "minecraft_username": row.minecraft_username,
         "discord_username": row.discord_username,
+        "email": row.email or "",
         "reason": row.reason or "",
         "punishment_reason": row.punishment_reason or "",
         "why_unban": row.why_unban or "",
@@ -632,6 +714,7 @@ def _serialize_staff_application(row) -> dict:
         "role": row.role,
         "minecraft_username": row.minecraft_username,
         "discord_username": row.discord_username,
+        "email": row.email or "",
         "age": row.age,
         "timezone": row.timezone,
         "hours_per_week": row.hours_per_week,
@@ -805,20 +888,31 @@ def api_appeal_update(appeal_id):
     db.commit()
     row = db(db.appeal.id == appeal_id).select().first()
 
-    # Notify the appellant via Discord DM when their appeal is approved.
-    if status == "approved" and previous_status != "approved":
+    if status in {"approved", "denied"} and status != previous_status:
         appeal_label = {"ban": "ban", "mute": "mute", "discord": "Discord"}.get(
             row.appeal_type, row.appeal_type
         )
-        _send_discord_dm(
-            settings.DISCORD_BOT_TOKEN,
-            row.discord_username,
+        if status == "approved":
+            _send_discord_dm(
+                settings.DISCORD_BOT_TOKEN,
+                row.discord_username,
+                (
+                    f"✅ Good news, **{row.minecraft_username}**! "
+                    f"Your {appeal_label} appeal (#{appeal_id}) on Cobblemon Conquest has been "
+                    f"**approved**. You are welcome back – see you in-game! "
+                    f"If you have any questions, join us on Discord: "
+                    f"{settings.DISCORD_INVITE_URL}"
+                ),
+            )
+
+        _send_email(
+            row.email,
+            f"Cobblemon Conquest: Appeal #{appeal_id} {status}",
             (
-                f"✅ Good news, **{row.minecraft_username}**! "
-                f"Your {appeal_label} appeal (#{appeal_id}) on Cobblemon Conquest has been "
-                f"**approved**. You are welcome back – see you in-game! "
-                f"If you have any questions, join us on Discord: "
-                f"{settings.DISCORD_INVITE_URL}"
+                f"Hi {row.minecraft_username},\n\n"
+                f"Your {appeal_label} appeal (ID #{appeal_id}) has been {status}.\n"
+                f"If you have questions, join our Discord: {settings.DISCORD_INVITE_URL}\n\n"
+                "Regards,\nCobblemon Conquest Staff"
             ),
         )
 
@@ -864,17 +958,29 @@ def api_staff_application_update(application_id):
     db.commit()
     row = db(db.staff_application.id == application_id).select().first()
 
-    # Notify the applicant via Discord DM when their application is accepted.
-    if status == "accepted" and previous_status != "accepted":
-        _send_discord_dm(
-            settings.DISCORD_BOT_TOKEN,
-            row.discord_username,
+    if status in {"accepted", "rejected"} and status != previous_status:
+        if status == "accepted":
+            _send_discord_dm(
+                settings.DISCORD_BOT_TOKEN,
+                row.discord_username,
+                (
+                    f"🎉 Congratulations, **{row.minecraft_username}**! "
+                    f"Your staff application for the **{row.role}** role on "
+                    f"Cobblemon Conquest has been **accepted**. "
+                    f"Welcome to the team! Please check the Discord server for next steps: "
+                    f"{settings.DISCORD_INVITE_URL}"
+                ),
+            )
+
+        _send_email(
+            row.email,
+            f"Cobblemon Conquest: Staff application #{application_id} {status}",
             (
-                f"🎉 Congratulations, **{row.minecraft_username}**! "
-                f"Your staff application for the **{row.role}** role on "
-                f"Cobblemon Conquest has been **accepted**. "
-                f"Welcome to the team! Please check the Discord server for next steps: "
-                f"{settings.DISCORD_INVITE_URL}"
+                f"Hi {row.minecraft_username},\n\n"
+                f"Your staff application for the {row.role} role (ID #{application_id}) "
+                f"has been {status}.\n"
+                f"If you have questions, join our Discord: {settings.DISCORD_INVITE_URL}\n\n"
+                "Regards,\nCobblemon Conquest Staff"
             ),
         )
 
