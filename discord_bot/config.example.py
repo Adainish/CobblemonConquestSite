@@ -20,3 +20,11 @@ ROADMAP_API_SECRET: str = "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
 # Discord role names (case-insensitive) whose members may use bot commands.
 # Members with ANY of these roles are granted access.
 ALLOWED_ROLES: list[str] = ["Admin", "Owner", "Staff Manager"]
+
+# Optional roadmap change notifications.
+# When ROADMAP_CHANGE_CHANNEL_ID is set to a Discord channel ID, roadmap add/edit/remove
+# commands will post a fresh roadmap screenshot there after each successful change.
+ROADMAP_CHANGE_CHANNEL_ID: int = 0
+ROADMAP_CHANGE_MESSAGE: str = (
+    "🗺️ Roadmap {action_label}: **#{item_id}** {title}\n{roadmap_url}"
+)

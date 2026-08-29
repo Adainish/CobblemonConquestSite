@@ -29,7 +29,11 @@ Setup:
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
+import os
+import tempfile
 
 import aiohttp
 import discord
@@ -46,6 +50,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("roadmap-bot")
 
 VALID_STATUSES = ["planned", "in_progress", "completed", "cancelled"]
+_ROADMAP_CHANGE_ACTION_LABELS = {
+    "added": "added",
+    "updated": "updated",
+    "removed": "removed",
+}
+_DEFAULT_ROADMAP_CHANGE_MESSAGE = (
+    "🗺️ Roadmap {action_label}: **#{item_id}** {title}\n{roadmap_url}"
+)
 
 
 # ── HTTP helpers ──────────────────────────────────────────────────────────
@@ -126,6 +138,179 @@ def _shorten(value: str, max_len: int = 100) -> str:
     if len(value) <= max_len:
         return value
     return value[: max_len - 1] + "…"
+
+
+class _SafeFormatDict(dict):
+    def __missing__(self, key: str) -> str:
+        return ""
+
+
+def _roadmap_url() -> str:
+    return f"{config.SITE_BASE_URL.rstrip('/')}/roadmap"
+
+
+def _roadmap_change_channel_id() -> int:
+    raw_channel_id = getattr(config, "ROADMAP_CHANGE_CHANNEL_ID", 0) or 0
+    try:
+        return int(raw_channel_id)
+    except (TypeError, ValueError):
+        logger.warning("ROADMAP_CHANGE_CHANNEL_ID is invalid: %r", raw_channel_id)
+        return 0
+
+
+def _roadmap_change_notifications_enabled() -> bool:
+    return _roadmap_change_channel_id() > 0
+
+
+def _format_roadmap_change_message(action: str, item: dict) -> str:
+    template = (
+        getattr(config, "ROADMAP_CHANGE_MESSAGE", _DEFAULT_ROADMAP_CHANGE_MESSAGE)
+        or _DEFAULT_ROADMAP_CHANGE_MESSAGE
+    )
+    status = item.get("status", "")
+    values = _SafeFormatDict(
+        action=action,
+        action_label=_ROADMAP_CHANGE_ACTION_LABELS.get(action, action),
+        description=item.get("description", ""),
+        item_id=item.get("id", ""),
+        roadmap_url=_roadmap_url(),
+        status=status,
+        status_label=_fmt_status(status) if status else "",
+        title=item.get("title", ""),
+    )
+    try:
+        return template.format_map(values).strip()
+    except (AttributeError, ValueError):
+        return _DEFAULT_ROADMAP_CHANGE_MESSAGE.format_map(values).strip()
+
+
+async def _get_roadmap_item(item_id: int) -> dict | None:
+    status_code, body = await _get("api/roadmap")
+    if status_code != 200 or not isinstance(body, list):
+        return None
+    for item in body:
+        if item.get("id") == item_id:
+            return item
+    return None
+
+
+async def _capture_roadmap_screenshot() -> str | None:
+    try:
+        from playwright.async_api import Error as PlaywrightError, async_playwright
+    except ModuleNotFoundError:
+        logger.warning("Playwright is not installed; skipping roadmap screenshot.")
+        return None
+
+    screenshot = tempfile.NamedTemporaryFile(
+        prefix="roadmap-change-", suffix=".png", delete=False
+    )
+    screenshot.close()
+    browser = None
+    try:
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch()
+            page = await browser.new_page(viewport={"width": 1440, "height": 2200})
+            await page.goto(_roadmap_url(), wait_until="networkidle")
+            inner_main = page.locator("main main")
+            target = inner_main.first if await inner_main.count() else page.locator("main").first
+            await target.screenshot(path=screenshot.name)
+    except (PlaywrightError, OSError) as exc:
+        logger.warning("Failed to capture roadmap screenshot: %s", exc)
+        with contextlib.suppress(OSError):
+            os.unlink(screenshot.name)
+        return None
+    finally:
+        if browser is not None:
+            with contextlib.suppress(Exception):
+                await browser.close()
+    return screenshot.name
+
+
+async def _resolve_roadmap_notification_channel(
+    client: discord.Client,
+) -> discord.abc.Messageable | None:
+    channel_id = _roadmap_change_channel_id()
+    if channel_id <= 0:
+        return None
+    channel = client.get_channel(channel_id)
+    if channel is not None:
+        return channel
+    try:
+        fetched_channel = await client.fetch_channel(channel_id)
+    except (discord.DiscordException, TypeError, ValueError) as exc:
+        logger.warning(
+            "Failed to resolve roadmap change notification channel %s: %s",
+            channel_id,
+            exc,
+        )
+        return None
+    return fetched_channel if hasattr(fetched_channel, "send") else None
+
+
+async def _clear_roadmap_notification_channel(
+    channel: discord.abc.Messageable,
+) -> None:
+    purge = getattr(channel, "purge", None)
+    if callable(purge):
+        try:
+            await purge(limit=None)
+            return
+        except discord.DiscordException as exc:
+            logger.warning("Failed to purge roadmap notification channel: %s", exc)
+
+    history = getattr(channel, "history", None)
+    if not callable(history):
+        return
+
+    try:
+        async for message in history(limit=None):
+            with contextlib.suppress(discord.DiscordException):
+                await message.delete()
+    except discord.DiscordException as exc:
+        logger.warning("Failed to clear roadmap notification channel history: %s", exc)
+
+
+async def _send_roadmap_change_notification(
+    client: discord.Client, action: str, item: dict
+) -> None:
+    channel = await _resolve_roadmap_notification_channel(client)
+    if channel is None:
+        return
+
+    message = _format_roadmap_change_message(action, item)
+    screenshot_path = await _capture_roadmap_screenshot()
+    try:
+        await _clear_roadmap_notification_channel(channel)
+        if screenshot_path:
+            await channel.send(
+                content=message,
+                file=discord.File(
+                    screenshot_path,
+                    filename=f"roadmap-{action}-{item.get('id', 'snapshot')}.png",
+                ),
+            )
+        else:
+            await channel.send(content=message)
+    finally:
+        if screenshot_path:
+            with contextlib.suppress(OSError):
+                os.unlink(screenshot_path)
+
+
+def _log_notification_task_result(task: asyncio.Task) -> None:
+    try:
+        task.result()
+    except Exception:
+        logger.exception("Roadmap change notification task failed.")
+
+
+def _schedule_roadmap_change_notification(
+    client: discord.Client, action: str, item: dict
+) -> None:
+    if not _roadmap_change_notifications_enabled():
+        return
+    task = asyncio.create_task(_send_roadmap_change_notification(client, action, item))
+    task.add_done_callback(_log_notification_task_result)
 
 
 # ── Bot setup ─────────────────────────────────────────────────────────────
@@ -222,6 +407,7 @@ async def roadmap_add(
             f"✅ Added roadmap item **#{body['id']}**: {body['title']} [{_fmt_status(body['status'])}]",
             ephemeral=True,
         )
+        _schedule_roadmap_change_notification(interaction.client, "added", body)
     else:
         error = body.get("message") or body.get("error") or str(body)
         await interaction.followup.send(
@@ -279,6 +465,7 @@ async def roadmap_edit(
             f"✅ Updated roadmap item **#{body['id']}**: {body['title']} [{_fmt_status(body['status'])}]",
             ephemeral=True,
         )
+        _schedule_roadmap_change_notification(interaction.client, "updated", body)
     elif status_code == 404:
         await interaction.followup.send(
             f"⚠️ Roadmap item #{item_id} not found.", ephemeral=True
@@ -300,11 +487,19 @@ async def roadmap_remove(interaction: discord.Interaction, item_id: int) -> None
         return
 
     await interaction.response.defer(ephemeral=True)
+    previous_item = None
+    if _roadmap_change_notifications_enabled():
+        previous_item = await _get_roadmap_item(item_id)
     status_code, body = await _delete(f"api/roadmap/{item_id}")
 
     if status_code == 200:
         await interaction.followup.send(
             f"✅ Deleted roadmap item **#{body['deleted']}**.", ephemeral=True
+        )
+        _schedule_roadmap_change_notification(
+            interaction.client,
+            "removed",
+            previous_item or {"id": body["deleted"]},
         )
     elif status_code == 404:
         await interaction.followup.send(

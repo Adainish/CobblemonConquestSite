@@ -78,6 +78,15 @@ db.commit()
 
 Statuses: `planned` | `in_progress` | `completed` | `cancelled`
 
+The Discord bot also supports posting roadmap change snapshots after `/roadmap add`,
+`/roadmap edit`, and `/roadmap remove`. To enable that, set
+`ROADMAP_CHANGE_CHANNEL_ID` and optionally `ROADMAP_CHANGE_MESSAGE` in
+`discord_bot/config.py`, then install the browser once with:
+
+```bash
+python -m playwright install chromium
+```
+
 ---
 
 ## Running Tests
