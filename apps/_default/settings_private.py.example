@@ -32,3 +32,9 @@ SITE_BASE_URL = "https://cobblemonconquest.com"
 # Override server/store URLs if needed
 # SERVER_IP = "play.cobblemonconquest.com"
 # STORE_URL  = "https://store.cobblemonconquest.com"
+
+# SMTP configuration for appeal/application email notifications
+# SMTP_SERVER = "smtp.example.com:587"
+# SMTP_SENDER = "noreply@cobblemonconquest.com"
+# SMTP_LOGIN = "smtp_user:smtp_password"
+# SMTP_TLS = True

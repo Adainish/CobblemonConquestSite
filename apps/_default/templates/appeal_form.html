@@ -39,6 +39,16 @@
       </div>
 
       <div class="form-group">
+        <label class="form-label" for="email">Email *</label>
+        <input class="form-control" type="email" id="email" name="email"
+               placeholder="you@example.com" maxlength="255"
+               value="[[=form_data.get('email','')]]" required />
+        [[if errors.get('email'):]]
+        <p class="form-error" role="alert">[[=errors['email']]]</p>
+        [[pass]]
+      </div>
+
+      <div class="form-group">
         <label class="form-label" for="punishment_reason">What reason were you given for the [[=appeal_type]]?</label>
         <textarea class="form-control" id="punishment_reason" name="punishment_reason"
                   placeholder="e.g. 'Griefing' or 'Toxicity in chat'">[[=form_data.get('punishment_reason','')]]</textarea>

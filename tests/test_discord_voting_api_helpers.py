@@ -3,11 +3,13 @@ import os
 import sys
 from types import SimpleNamespace
 
+import pytest
+
 
 _ROOT = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(_ROOT, "apps"))
 
-from _default.controllers import _serialize_appeal, _serialize_staff_application
+from _default.controllers import _send_email, _serialize_appeal, _serialize_staff_application
 
 
 def test_serialize_appeal_includes_status_and_timestamp():
@@ -16,6 +18,7 @@ def test_serialize_appeal_includes_status_and_timestamp():
         appeal_type="ban",
         minecraft_username="PlayerOne",
         discord_username="PlayerOne#0001",
+        email=None,
         reason="",
         punishment_reason=None,
         why_unban="I made a mistake.",
@@ -27,6 +30,7 @@ def test_serialize_appeal_includes_status_and_timestamp():
     payload = _serialize_appeal(row)
     assert payload["id"] == 9
     assert payload["status"] == "open"
+    assert payload["email"] == ""
     assert payload["submitted_on"] == "2026-01-01T00:00:00+00:00"
 
 
@@ -57,6 +61,7 @@ def test_appeal_approved_sends_discord_dm(monkeypatch):
         appeal_type="ban",
         minecraft_username="TestPlayer",
         discord_username="testplayer#1234",
+        email="test@example.com",
         reason="I was wrongly banned.",
         punishment_reason="Hacking",
         why_unban="I didn't hack.",
@@ -121,6 +126,7 @@ def test_appeal_approved_no_duplicate_dm(monkeypatch):
         role="Helper",
         minecraft_username="Applicant",
         discord_username="Applicant#9999",
+        email=None,
         age=None,
         timezone="UTC",
         hours_per_week=8,
@@ -135,5 +141,54 @@ def test_appeal_approved_no_duplicate_dm(monkeypatch):
     payload = _serialize_staff_application(row)
     assert payload["id"] == 3
     assert payload["status"] == "pending"
+    assert payload["email"] == ""
     assert payload["prior_experience"] == ""
     assert payload["submitted_on"] == "2026-02-02T00:00:00+00:00"
+
+
+def test_send_email_uses_smtp_tls(monkeypatch):
+    controllers_mod = sys.modules.get("_default.controllers")
+    if controllers_mod is None:
+        pytest.skip("controllers not importable in this environment")
+
+    sent = {}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout):
+            sent["host"] = host
+            sent["port"] = port
+            sent["timeout"] = timeout
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def starttls(self):
+            sent["tls"] = True
+
+        def login(self, username, password):
+            sent["username"] = username
+            sent["password"] = password
+
+        def send_message(self, message):
+            sent["subject"] = message["Subject"]
+            sent["to"] = message["To"]
+
+    monkeypatch.setattr(controllers_mod.smtplib, "SMTP", FakeSMTP)
+    monkeypatch.setattr(controllers_mod.settings, "SMTP_SERVER", "smtp.example.com:587", raising=False)
+    monkeypatch.setattr(controllers_mod.settings, "SMTP_SENDER", "noreply@example.com", raising=False)
+    monkeypatch.setattr(controllers_mod.settings, "SMTP_LOGIN", "user:pass", raising=False)
+    monkeypatch.setattr(controllers_mod.settings, "SMTP_TLS", True, raising=False)
+    monkeypatch.setattr(controllers_mod.settings, "SMTP_SSL", False, raising=False)
+
+    ok = _send_email("player@example.com", "Test Subject", "Body")
+    assert ok is True
+    assert sent["host"] == "smtp.example.com"
+    assert sent["port"] == 587
+    assert sent["tls"] is True
+    assert sent["username"] == "user"
+    assert sent["password"] == "pass"
+    assert sent["to"] == "player@example.com"
+    assert sent["subject"] == "Test Subject"
