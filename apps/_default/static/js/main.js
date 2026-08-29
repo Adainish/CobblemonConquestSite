@@ -49,7 +49,8 @@ function showToast(msg) {
 }
 
 function fetchPlayerCount() {
-    fetch("/api/player-count")
+    const endpoint = document.body.dataset.playerCountUrl || "/api/player-count";
+    fetch(endpoint)
         .then(function (res) { return res.json(); })
         .then(function (data) {
             const online    = data.online    || 0;

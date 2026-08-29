@@ -44,7 +44,7 @@
   <link rel="stylesheet" href="[[=URL('static','css/style.css')]]" />
   <link rel="icon" href="[[=URL('static','img/favicon.png')]]" type="image/png" />
 </head>
-<body>
+<body data-player-count-url="[[=URL('api/player-count')]]">
 
 <div class="torii-stripe"></div>
 
@@ -58,7 +58,7 @@
   </button>
   <ul class="nav-links" role="list">
     <li><a href="[[=URL('index')]]">Home</a></li>
-    <li><a href="[[=URL('modpack')]]">Modpack</a></li>
+<!--    <li><a href="[[=URL('modpack')]]">Modpack</a></li> The modpack is not released yet -->
     <li><a href="[[=URL('voting')]]">Vote</a></li>
     <li><a href="[[=URL('roadmap')]]">Roadmap</a></li>
     <li><a href="[[=URL('faq')]]">FAQ</a></li>

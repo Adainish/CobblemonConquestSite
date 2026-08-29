@@ -206,6 +206,7 @@ def _mc_player_count(host: str, port: int = 25565, timeout: float = 3.0) -> dict
     Uses the 1.7+ Server List Ping protocol (a lightweight handshake + status request).
     Falls back to {"online": 0, "max": 0, "reachable": False} on any error.
     """
+    original_host, original_port = host, port
     try:
         host, port = _resolve_mc_host(host, port)
         with socket.create_connection((host, port), timeout=timeout) as sock:
@@ -268,7 +269,34 @@ def _mc_player_count(host: str, port: int = 25565, timeout: float = 3.0) -> dict
                 "reachable": True,
             }
     except Exception as exc:
-        logger.debug("MC ping failed for %s:%s – %s", host, port, exc)
+        logger.debug("Direct MC ping failed for %s:%s – %s", host, port, exc)
+
+    # Fallback for production hosts where outbound game-port TCP is blocked.
+    try:
+        endpoint = f"https://api.mcstatus.io/v2/status/java/{original_host}"
+        if int(original_port) != 25565:
+            endpoint = f"{endpoint}:{int(original_port)}"
+
+        api_resp = requests.get(endpoint, timeout=timeout)
+        api_resp.raise_for_status()
+        payload = api_resp.json()
+
+        if not payload.get("online", False):
+            return {"online": 0, "max": 0, "reachable": False}
+
+        players = payload.get("players", {})
+        return {
+            "online": int(players.get("online", 0)),
+            "max": int(players.get("max", 0)),
+            "reachable": True,
+        }
+    except (requests.RequestException, ValueError, TypeError) as exc:
+        logger.debug(
+            "HTTP MC status fallback failed for %s:%s – %s",
+            original_host,
+            original_port,
+            exc,
+        )
         return {"online": 0, "max": 0, "reachable": False}
 
 
