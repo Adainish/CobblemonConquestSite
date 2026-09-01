@@ -34,6 +34,7 @@ import contextlib
 import logging
 import os
 import tempfile
+from urllib.parse import urljoin
 
 import aiohttp
 import discord
@@ -79,6 +80,32 @@ async def _parse_response(resp) -> dict | list:
     return {"error": text[:300]}
 
 
+_MUTATING_REDIRECT_STATUSES = {301, 302, 307, 308}
+
+
+async def _request_with_preserved_method(
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    max_redirects: int = 3,
+) -> tuple[int, dict | list]:
+    url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
+    request_kwargs = {"headers": _headers(), "allow_redirects": False}
+    if payload is not None:
+        request_kwargs["json"] = payload
+
+    async with aiohttp.ClientSession() as session:
+        for _ in range(max_redirects + 1):
+            async with session.request(method, url, **request_kwargs) as resp:
+                location = resp.headers.get("Location")
+                if resp.status in _MUTATING_REDIRECT_STATUSES and location:
+                    url = urljoin(str(resp.url), location)
+                    continue
+                return resp.status, await _parse_response(resp)
+
+    return 508, {"error": "Too many redirects"}
+
+
 async def _get(path: str) -> tuple[int, dict | list]:
     """Send a GET request to the site API and return (status_code, body)."""
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
@@ -88,24 +115,15 @@ async def _get(path: str) -> tuple[int, dict | list]:
 
 
 async def _post(path: str, payload: dict) -> tuple[int, dict | list]:
-    url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=payload, headers=_headers()) as resp:
-            return resp.status, await _parse_response(resp)
+    return await _request_with_preserved_method("POST", path, payload)
 
 
-async def _patch(path: str, payload: dict) -> tuple[int, dict]:
-    url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
-    async with aiohttp.ClientSession() as session:
-        async with session.patch(url, json=payload, headers=_headers()) as resp:
-            return resp.status, await _parse_response(resp)
+async def _patch(path: str, payload: dict) -> tuple[int, dict | list]:
+    return await _request_with_preserved_method("PATCH", path, payload)
 
 
-async def _delete(path: str) -> tuple[int, dict]:
-    url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
-    async with aiohttp.ClientSession() as session:
-        async with session.delete(url, headers=_headers()) as resp:
-            return resp.status, await _parse_response(resp)
+async def _delete(path: str) -> tuple[int, dict | list]:
+    return await _request_with_preserved_method("DELETE", path)
 
 
 def _response_item(body: dict | list) -> dict | None:

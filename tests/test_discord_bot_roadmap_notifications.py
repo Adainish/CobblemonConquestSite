@@ -3,6 +3,7 @@ import importlib.util
 import os
 import sys
 import types
+from urllib.parse import urljoin
 import unittest.mock as mock
 
 import pytest
@@ -40,6 +41,84 @@ def _make_interaction():
 
 
 class TestRoadmapChangeNotifications:
+    def test_post_retries_redirect_with_post_method(self, bot_module, monkeypatch):
+        request_calls = []
+        first_url = "https://example.com/api/roadmap"
+        redirect_url = "https://example.com/conquest/api/roadmap"
+        created_item = {"id": 11, "title": "Castle Siege", "status": "planned"}
+
+        class FakeResponse:
+            def __init__(self, status, body, *, headers=None, url=first_url):
+                self.status = status
+                self._body = body
+                self.headers = headers or {"Content-Type": "application/json"}
+                self.url = url
+
+            async def json(self):
+                return self._body
+
+            async def text(self):
+                return str(self._body)
+
+        class FakeRequestContext:
+            def __init__(self, response):
+                self.response = response
+
+            async def __aenter__(self):
+                return self.response
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        class FakeClientSession:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            def request(self, method, url, **kwargs):
+                request_calls.append((method, url, kwargs))
+                if len(request_calls) == 1:
+                    response = FakeResponse(
+                        302,
+                        "",
+                        headers={"Location": "/conquest/api/roadmap"},
+                        url=first_url,
+                    )
+                else:
+                    response = FakeResponse(200, created_item, url=redirect_url)
+                return FakeRequestContext(response)
+
+        monkeypatch.setattr(bot_module.aiohttp, "ClientSession", FakeClientSession)
+
+        status_code, body = asyncio.run(
+            bot_module._post("api/roadmap", {"title": "Castle Siege", "status": "planned"})
+        )
+
+        assert status_code == 200
+        assert body == created_item
+        assert request_calls == [
+            (
+                "POST",
+                first_url,
+                {
+                    "json": {"title": "Castle Siege", "status": "planned"},
+                    "headers": bot_module._headers(),
+                    "allow_redirects": False,
+                },
+            ),
+            (
+                "POST",
+                urljoin(first_url, "/conquest/api/roadmap"),
+                {
+                    "json": {"title": "Castle Siege", "status": "planned"},
+                    "headers": bot_module._headers(),
+                    "allow_redirects": False,
+                },
+            ),
+        ]
+
     def test_format_roadmap_change_message_uses_configured_template(self, bot_module):
         message = bot_module._format_roadmap_change_message(
             "updated",
