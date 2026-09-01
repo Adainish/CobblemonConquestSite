@@ -87,7 +87,7 @@ async def _get(path: str) -> tuple[int, dict | list]:
             return resp.status, await _parse_response(resp)
 
 
-async def _post(path: str, payload: dict) -> tuple[int, dict]:
+async def _post(path: str, payload: dict) -> tuple[int, dict | list]:
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload, headers=_headers()) as resp:
@@ -106,6 +106,16 @@ async def _delete(path: str) -> tuple[int, dict]:
     async with aiohttp.ClientSession() as session:
         async with session.delete(url, headers=_headers()) as resp:
             return resp.status, await _parse_response(resp)
+
+
+def _response_item(body: dict | list) -> dict | None:
+    if isinstance(body, dict):
+        return body
+    if isinstance(body, list):
+        for item in body:
+            if isinstance(item, dict):
+                return item
+    return None
 
 
 # ── Permission guard ──────────────────────────────────────────────────────
@@ -403,11 +413,18 @@ async def roadmap_add(
     status_code, body = await _post("api/roadmap", payload)
 
     if status_code == 200:
+        item = _response_item(body)
+        if not item:
+            await interaction.followup.send(
+                "⚠️ Added roadmap item, but received an unexpected response payload.",
+                ephemeral=True,
+            )
+            return
         await interaction.followup.send(
-            f"✅ Added roadmap item **#{body['id']}**: {body['title']} [{_fmt_status(body['status'])}]",
+            f"✅ Added roadmap item **#{item['id']}**: {item['title']} [{_fmt_status(item['status'])}]",
             ephemeral=True,
         )
-        _schedule_roadmap_change_notification(interaction.client, "added", body)
+        _schedule_roadmap_change_notification(interaction.client, "added", item)
     else:
         error = body.get("message") or body.get("error") or str(body)
         await interaction.followup.send(

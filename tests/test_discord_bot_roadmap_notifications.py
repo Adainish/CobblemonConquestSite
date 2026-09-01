@@ -96,6 +96,40 @@ class TestRoadmapChangeNotifications:
             interaction.client, "added", created_item
         )
 
+    def test_roadmap_add_uses_first_item_from_list_response(self, bot_module, monkeypatch):
+        interaction = _make_interaction()
+        created_item = {
+            "id": 6,
+            "title": "Safari Zone",
+            "description": "Wild encounter expansion",
+            "status": "in_progress",
+        }
+
+        monkeypatch.setattr(bot_module, "_has_permission", lambda _: True)
+        monkeypatch.setattr(bot_module, "_post", mock.AsyncMock(return_value=(200, [created_item])))
+        schedule_notification = mock.MagicMock()
+        monkeypatch.setattr(
+            bot_module, "_schedule_roadmap_change_notification", schedule_notification
+        )
+
+        asyncio.run(
+            bot_module.roadmap_add.callback(
+                interaction,
+                "Safari Zone",
+                "Wild encounter expansion",
+                "in_progress",
+                2,
+            )
+        )
+
+        interaction.followup.send.assert_awaited_once_with(
+            "✅ Added roadmap item **#6**: Safari Zone [🔨 In Progress]",
+            ephemeral=True,
+        )
+        schedule_notification.assert_called_once_with(
+            interaction.client, "added", created_item
+        )
+
     def test_roadmap_edit_schedules_change_notification(self, bot_module, monkeypatch):
         interaction = _make_interaction()
         updated_item = {
