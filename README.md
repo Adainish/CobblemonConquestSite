@@ -63,6 +63,17 @@ Optional (for reaction voting on appeal embeds):
 | `DISCORD_BOT_TOKEN` | Discord bot token (for adding ✅/❌ reactions) |
 | `DISCORD_APPEALS_CHANNEL_ID` | Channel ID where appeals are posted |
 
+Staff portal (Discord OAuth + role access):
+
+| Variable | Description |
+|---|---|
+| `DISCORD_OAUTH_CLIENT_ID` | Discord application client ID |
+| `DISCORD_OAUTH_CLIENT_SECRET` | Discord application client secret |
+| `DISCORD_OAUTH_REDIRECT_URI` | OAuth callback URL, e.g. `https://your-site/staff/oauth/callback` |
+| `DISCORD_STAFF_GUILD_ID` | Discord guild/server ID used for role checks |
+| `DISCORD_STAFF_ROLE_LEVELS` | Mapping of Discord role IDs to access levels (`viewer`, `editor`, `admin`) |
+| `DISCORD_STAFF_ROLE_LEVELS_BY_NAME` | Optional fallback mapping of role names to access levels |
+
 ---
 
 ## Managing the Roadmap

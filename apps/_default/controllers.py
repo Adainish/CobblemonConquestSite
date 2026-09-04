@@ -20,9 +20,11 @@ import html
 import json
 import datetime as _dt
 import logging
+import secrets
 import smtplib
 import socket
 import struct
+import urllib.parse
 from email.message import EmailMessage
 
 import requests
@@ -34,6 +36,7 @@ from . import settings
 from .models import *  # noqa: F401,F403 – ensure tables are defined
 
 logger = logging.getLogger("conquest")
+_STAFF_LEVEL_RANKS = {"viewer": 1, "editor": 2, "admin": 3}
 
 
 def _ctx(**extra) -> dict:
@@ -59,6 +62,190 @@ def _sanitize(value: str) -> str:
 def _hash_ip(ip: str) -> str:
     """One-way hash of an IP address for spam detection without storing raw IPs."""
     return hashlib.sha256(ip.encode()).hexdigest()
+
+
+def _access_rank(level: str) -> int:
+    return _STAFF_LEVEL_RANKS.get((level or "").strip().lower(), 0)
+
+
+def _normalize_staff_level(level: str, default: str = "viewer") -> str:
+    normalized = (level or "").strip().lower()
+    if normalized in _STAFF_LEVEL_RANKS:
+        return normalized
+    return default
+
+
+def _slugify(value: str) -> str:
+    cleaned = "".join(ch.lower() if ch.isalnum() else "-" for ch in (value or "").strip())
+    slug = "-".join(part for part in cleaned.split("-") if part)
+    return slug[:100] or "document"
+
+
+def _resolve_staff_access_level(role_ids: list[str], role_names: list[str] | None = None) -> str | None:
+    role_ids = [str(role_id) for role_id in (role_ids or [])]
+    role_names = [str(name).strip().lower() for name in (role_names or []) if str(name).strip()]
+    id_levels = getattr(settings, "DISCORD_STAFF_ROLE_LEVELS", {}) or {}
+    name_levels_raw = getattr(settings, "DISCORD_STAFF_ROLE_LEVELS_BY_NAME", {}) or {}
+    name_levels = {str(name).strip().lower(): value for name, value in name_levels_raw.items()}
+
+    best = None
+    best_rank = 0
+
+    for role_id in role_ids:
+        level = _normalize_staff_level(id_levels.get(role_id), default="")
+        rank = _access_rank(level)
+        if rank > best_rank:
+            best = level
+            best_rank = rank
+
+    for role_name in role_names:
+        level = _normalize_staff_level(name_levels.get(role_name), default="")
+        rank = _access_rank(level)
+        if rank > best_rank:
+            best = level
+            best_rank = rank
+
+    return best
+
+
+def _can_manage_staff_note(actor_level: str, target_level: str) -> bool:
+    return _access_rank(actor_level) > _access_rank(target_level)
+
+
+def _discord_role_name_lookup(guild_id: str) -> dict[str, str]:
+    token = getattr(settings, "DISCORD_BOT_TOKEN", "")
+    if not (token and guild_id):
+        return {}
+    headers = {"Authorization": f"Bot {token}"}
+    try:
+        resp = requests.get(
+            f"https://discord.com/api/v10/guilds/{guild_id}/roles",
+            headers=headers,
+            timeout=8,
+        )
+        if not resp.ok:
+            return {}
+        data = resp.json()
+        if not isinstance(data, list):
+            return {}
+        return {str(role.get("id")): str(role.get("name", "")) for role in data if role.get("id")}
+    except (requests.RequestException, ValueError, TypeError):
+        return {}
+
+
+def _discord_username(user_data: dict) -> str:
+    discriminator = user_data.get("discriminator")
+    username = user_data.get("global_name") or user_data.get("username") or ""
+    if discriminator and discriminator != "0" and user_data.get("username"):
+        username = f"{user_data['username']}#{discriminator}"
+    return username
+
+
+def _get_discord_member(discord_id: str, guild_id: str) -> dict | None:
+    token = getattr(settings, "DISCORD_BOT_TOKEN", "")
+    if not token:
+        raise HTTP(500, "DISCORD_BOT_TOKEN is required for staff role verification.")
+    headers = {"Authorization": f"Bot {token}"}
+    try:
+        resp = requests.get(
+            f"https://discord.com/api/v10/guilds/{guild_id}/members/{discord_id}",
+            headers=headers,
+            timeout=8,
+        )
+        if not resp.ok:
+            return None
+        return resp.json()
+    except (requests.RequestException, ValueError, TypeError):
+        return None
+
+
+def _staff_identity_from_user(user_data: dict, member: dict, guild_id: str) -> dict | None:
+    discord_id = str(user_data.get("id", "")).strip()
+    if not discord_id:
+        return None
+    role_ids = [str(role_id) for role_id in member.get("roles", [])]
+    role_name_lookup = _discord_role_name_lookup(guild_id)
+    role_names = [role_name_lookup.get(role_id, "") for role_id in role_ids if role_id in role_name_lookup]
+    access_level = _resolve_staff_access_level(role_ids, role_names)
+    if not access_level:
+        return None
+    return {
+        "discord_id": discord_id,
+        "discord_username": _discord_username(user_data),
+        "access_level": access_level,
+        "discord_roles": role_ids,
+    }
+
+
+def _get_discord_staff_identity(access_token: str) -> dict | None:
+    guild_id = str(getattr(settings, "DISCORD_STAFF_GUILD_ID", "")).strip()
+    if not guild_id:
+        raise HTTP(500, "DISCORD_STAFF_GUILD_ID is not configured")
+
+    headers = {"Authorization": "Bearer " + access_token}
+    try:
+        user_resp = requests.get("https://discord.com/api/v10/users/@me", headers=headers, timeout=8)
+        if not user_resp.ok:
+            return None
+        user = user_resp.json()
+    except (requests.RequestException, ValueError, TypeError):
+        return None
+
+    discord_id = str(user.get("id", "")).strip()
+    if not discord_id:
+        return None
+    member = _get_discord_member(discord_id, guild_id)
+    if not member:
+        return None
+    return _staff_identity_from_user(user, member, guild_id)
+
+
+def _clear_staff_session():
+    session.pop("staff_auth", None)
+    session.pop("staff_oauth_state", None)
+
+
+def _sync_staff_member(auth: dict):
+    existing = db(db.staff_member.discord_id == auth["discord_id"]).select().first()
+    updates = dict(
+        discord_username=auth["discord_username"],
+        access_level=auth["access_level"],
+        discord_roles_json=json.dumps(auth.get("discord_roles", [])),
+        last_seen_on=_dt.datetime.now(_dt.timezone.utc),
+    )
+    if existing:
+        db(db.staff_member.id == existing.id).update(**updates)
+    else:
+        db.staff_member.insert(discord_id=auth["discord_id"], **updates)
+    db.commit()
+
+
+def _require_staff(min_level: str = "viewer", redirect_on_missing: bool = False) -> dict:
+    auth = session.get("staff_auth")
+    if not auth or not auth.get("discord_id"):
+        if redirect_on_missing:
+            redirect(URL("staff_login"))
+        raise HTTP(403, "Staff login required")
+
+    guild_id = str(getattr(settings, "DISCORD_STAFF_GUILD_ID", "")).strip()
+    if not guild_id:
+        raise HTTP(500, "DISCORD_STAFF_GUILD_ID is not configured")
+    member = _get_discord_member(auth["discord_id"], guild_id)
+    if member:
+        user_data = member.get("user") or {"id": auth["discord_id"], "username": auth.get("discord_username", "")}
+    else:
+        user_data = None
+    identity = _staff_identity_from_user(user_data or {}, member or {}, guild_id) if user_data and member else None
+    if not identity or not identity.get("discord_id"):
+        _clear_staff_session()
+        raise HTTP(403, "Your Discord role no longer grants staff access.")
+
+    session["staff_auth"] = identity
+    _sync_staff_member(identity)
+
+    if _access_rank(identity["access_level"]) < _access_rank(min_level):
+        raise HTTP(403, "Insufficient staff permissions")
+    return identity
 
 
 def _send_discord_webhook(webhook_url: str, embed: dict) -> str | None:
@@ -665,6 +852,270 @@ def apply_submitted():
     return _ctx(role=role)
 
 
+def _serialize_staff_document(row) -> dict:
+    return {
+        "id": row.id,
+        "title": row.title,
+        "slug": row.slug,
+        "markdown": row.markdown or "",
+        "read_level": row.read_level,
+        "write_level": row.write_level,
+        "created_by_discord_id": row.created_by_discord_id,
+        "updated_by_discord_id": row.updated_by_discord_id,
+        "updated_on": row.updated_on.isoformat() if row.updated_on else "",
+    }
+
+
+def _serialize_staff_notification(row) -> dict:
+    return {
+        "id": row.id,
+        "message": row.message or "",
+        "created_by_discord_id": row.created_by_discord_id,
+        "created_on": row.created_on.isoformat() if row.created_on else "",
+    }
+
+
+def _serialize_staff_note(row) -> dict:
+    return {
+        "id": row.id,
+        "target_discord_id": row.target_discord_id,
+        "message": row.message or "",
+        "created_by_discord_id": row.created_by_discord_id,
+        "created_on": row.created_on.isoformat() if row.created_on else "",
+    }
+
+
+def _is_oauth_configured() -> bool:
+    return bool(
+        getattr(settings, "DISCORD_OAUTH_CLIENT_ID", "")
+        and getattr(settings, "DISCORD_OAUTH_CLIENT_SECRET", "")
+        and getattr(settings, "DISCORD_OAUTH_REDIRECT_URI", "")
+        and getattr(settings, "DISCORD_STAFF_GUILD_ID", "")
+    )
+
+
+@action("staff/login")
+@action.uses(session)
+def staff_login():
+    if not _is_oauth_configured():
+        raise HTTP(500, "Discord OAuth staff login is not configured.")
+
+    state = secrets.token_urlsafe(24)
+    session["staff_oauth_state"] = state
+    params = urllib.parse.urlencode(
+        {
+            "client_id": settings.DISCORD_OAUTH_CLIENT_ID,
+            "redirect_uri": settings.DISCORD_OAUTH_REDIRECT_URI,
+            "response_type": "code",
+            "scope": "identify guilds.members.read",
+            "state": state,
+        }
+    )
+    redirect(f"https://discord.com/api/oauth2/authorize?{params}")
+
+
+@action("staff/oauth/callback")
+@action.uses(db, session)
+def staff_oauth_callback():
+    if not _is_oauth_configured():
+        raise HTTP(500, "Discord OAuth staff login is not configured.")
+    if request.query.get("error"):
+        raise HTTP(403, "Discord login was denied.")
+
+    state = request.query.get("state", "")
+    expected_state = session.get("staff_oauth_state", "")
+    if not state or not expected_state or not hmac.compare_digest(state, expected_state):
+        raise HTTP(403, "Invalid OAuth state.")
+
+    code = request.query.get("code", "")
+    if not code:
+        raise HTTP(400, "Missing OAuth code.")
+
+    token_resp = requests.post(
+        "https://discord.com/api/v10/oauth2/token",
+        data={
+            "client_id": settings.DISCORD_OAUTH_CLIENT_ID,
+            "client_secret": settings.DISCORD_OAUTH_CLIENT_SECRET,
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": settings.DISCORD_OAUTH_REDIRECT_URI,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=8,
+    )
+    if not token_resp.ok:
+        raise HTTP(403, "Discord OAuth token exchange failed.")
+
+    try:
+        token_data = token_resp.json()
+    except ValueError:
+        raise HTTP(403, "Discord OAuth response was invalid.")
+
+    access_token = (token_data.get("access_token") or "").strip()
+    if not access_token:
+        raise HTTP(403, "Discord OAuth token exchange failed.")
+
+    identity = _get_discord_staff_identity(access_token)
+    if not identity:
+        _clear_staff_session()
+        raise HTTP(403, "You do not have a valid staff role in this Discord server.")
+
+    session["staff_auth"] = identity
+    session.pop("staff_oauth_state", None)
+    _sync_staff_member(identity)
+    redirect(URL("staff"))
+
+
+@action("staff/logout")
+@action.uses(session)
+def staff_logout():
+    _clear_staff_session()
+    redirect(URL("index"))
+
+
+@action("staff", method=["GET", "POST"])
+@action.uses("staff.html", db, session, T)
+def staff_portal():
+    auth = _require_staff("viewer", redirect_on_missing=True)
+    flash = ""
+    errors = {}
+    actor_rank = _access_rank(auth["access_level"])
+
+    if request.method == "POST":
+        form_action = (request.forms.get("action") or "").strip()
+
+        if form_action == "create_document":
+            if actor_rank < _access_rank("editor"):
+                raise HTTP(403, "Only editor-level staff can write documents.")
+            title = (request.forms.get("title") or "").strip()
+            markdown = (request.forms.get("markdown") or "").strip()
+            read_level = _normalize_staff_level(request.forms.get("read_level"), default="viewer")
+            write_level = _normalize_staff_level(request.forms.get("write_level"), default="editor")
+            if not title:
+                errors["document"] = "Document title is required."
+            elif not markdown:
+                errors["document"] = "Document markdown is required."
+            elif actor_rank < max(_access_rank(read_level), _access_rank(write_level)):
+                errors["document"] = "You cannot create a document above your permission level."
+            else:
+                slug = _slugify(title)
+                while db(db.staff_document.slug == slug).count():
+                    slug = f"{slug}-{secrets.token_hex(2)}"
+                db.staff_document.insert(
+                    title=title,
+                    slug=slug,
+                    markdown=markdown,
+                    read_level=read_level,
+                    write_level=write_level,
+                    created_by_discord_id=auth["discord_id"],
+                    updated_by_discord_id=auth["discord_id"],
+                )
+                db.commit()
+                flash = "Staff document saved."
+
+        elif form_action == "update_document":
+            try:
+                doc_id = int(request.forms.get("document_id") or 0)
+            except (TypeError, ValueError):
+                doc_id = 0
+            row = db(db.staff_document.id == doc_id).select().first()
+            if not row:
+                errors["document"] = "Document not found."
+            elif actor_rank < _access_rank(row.write_level):
+                raise HTTP(403, "You do not have write access to this document.")
+            else:
+                title = (request.forms.get("title") or "").strip()
+                markdown = (request.forms.get("markdown") or "").strip()
+                read_level = _normalize_staff_level(request.forms.get("read_level"), default=row.read_level)
+                write_level = _normalize_staff_level(request.forms.get("write_level"), default=row.write_level)
+                if not title or not markdown:
+                    errors["document"] = "Document title and markdown are required."
+                elif actor_rank < max(_access_rank(read_level), _access_rank(write_level)):
+                    errors["document"] = "You cannot set permission levels above your own."
+                else:
+                    db(db.staff_document.id == doc_id).update(
+                        title=title,
+                        markdown=markdown,
+                        read_level=read_level,
+                        write_level=write_level,
+                        updated_by_discord_id=auth["discord_id"],
+                        updated_on=_dt.datetime.now(_dt.timezone.utc),
+                    )
+                    db.commit()
+                    flash = "Staff document updated."
+
+        elif form_action == "create_notification":
+            if actor_rank < _access_rank("admin"):
+                raise HTTP(403, "Only admin-level staff can post notifications.")
+            message = (request.forms.get("message") or "").strip()
+            if not message:
+                errors["notification"] = "Notification message is required."
+            else:
+                db.staff_notification.insert(
+                    message=message,
+                    created_by_discord_id=auth["discord_id"],
+                )
+                db.commit()
+                flash = "Notification posted."
+
+        elif form_action == "create_note":
+            if actor_rank < _access_rank("editor"):
+                raise HTTP(403, "Only editor-level staff can create notes.")
+            target_discord_id = (request.forms.get("target_discord_id") or "").strip()
+            message = (request.forms.get("message") or "").strip()
+            target = db(db.staff_member.discord_id == target_discord_id).select().first()
+            if not target:
+                errors["note"] = "Select a valid staff member."
+            elif not message:
+                errors["note"] = "Note message is required."
+            elif not _can_manage_staff_note(auth["access_level"], target.access_level):
+                raise HTTP(403, "You can only leave notes for staff below your own level.")
+            else:
+                db.staff_note.insert(
+                    target_discord_id=target_discord_id,
+                    message=message,
+                    created_by_discord_id=auth["discord_id"],
+                )
+                db.commit()
+                flash = "Staff note added."
+
+    documents = db(db.staff_document).select(orderby=~db.staff_document.updated_on)
+    visible_docs = [
+        row for row in documents if actor_rank >= _access_rank(row.read_level)
+    ]
+    editable_doc_ids = {
+        row.id for row in visible_docs if actor_rank >= _access_rank(row.write_level)
+    }
+    notifications = db(db.staff_notification).select(
+        orderby=~db.staff_notification.created_on,
+        limitby=(0, 50),
+    )
+    notes = db(db.staff_note.target_discord_id == auth["discord_id"]).select(
+        orderby=~db.staff_note.created_on,
+        limitby=(0, 50),
+    )
+    members = db(db.staff_member).select(orderby=db.staff_member.discord_username)
+    member_names = {row.discord_id: row.discord_username for row in members}
+    member_levels = {row.discord_id: row.access_level for row in members}
+
+    return _ctx(
+        staff_auth=auth,
+        flash=flash,
+        errors=errors,
+        access_levels=list(_STAFF_LEVEL_RANKS.keys()),
+        documents=[_serialize_staff_document(row) for row in visible_docs],
+        editable_doc_ids=editable_doc_ids,
+        notifications=[_serialize_staff_notification(row) for row in notifications],
+        notes=[_serialize_staff_note(row) for row in notes],
+        staff_members=[{"discord_id": row.discord_id, "discord_username": row.discord_username, "access_level": row.access_level} for row in members],
+        member_names=member_names,
+        member_levels=member_levels,
+        can_edit_documents=actor_rank >= _access_rank("editor"),
+        can_post_notifications=actor_rank >= _access_rank("admin"),
+        can_create_notes=actor_rank >= _access_rank("editor"),
+    )
+
+
 @action("<path:path>")
 def redirect_404(path=None):
     return redirect(URL("index"))
@@ -1118,3 +1569,48 @@ def api_faq_delete(item_id):
     db(db.faq_item.id == item_id).delete()
     db.commit()
     return json.dumps({"deleted": item_id})
+
+
+# ── Staff portal API ────────────────────────────────────────────────────────
+
+@action("api/staff/session", method=["GET"])
+def api_staff_session():
+    response.headers["Content-Type"] = "application/json"
+    auth = _require_staff("viewer")
+    return json.dumps(
+        {
+            "discord_id": auth["discord_id"],
+            "discord_username": auth["discord_username"],
+            "access_level": auth["access_level"],
+            "discord_roles": auth.get("discord_roles", []),
+        }
+    )
+
+
+@action("api/staff/documents", method=["GET"])
+def api_staff_documents_list():
+    response.headers["Content-Type"] = "application/json"
+    auth = _require_staff("viewer")
+    actor_rank = _access_rank(auth["access_level"])
+    rows = db(db.staff_document).select(orderby=~db.staff_document.updated_on)
+    visible_rows = [row for row in rows if actor_rank >= _access_rank(row.read_level)]
+    return json.dumps([_serialize_staff_document(row) for row in visible_rows])
+
+
+@action("api/staff/notifications", method=["GET"])
+def api_staff_notifications_list():
+    response.headers["Content-Type"] = "application/json"
+    _require_staff("viewer")
+    rows = db(db.staff_notification).select(orderby=~db.staff_notification.created_on, limitby=(0, 100))
+    return json.dumps([_serialize_staff_notification(row) for row in rows])
+
+
+@action("api/staff/notes", method=["GET"])
+def api_staff_notes_list():
+    response.headers["Content-Type"] = "application/json"
+    auth = _require_staff("viewer")
+    rows = db(db.staff_note.target_discord_id == auth["discord_id"]).select(
+        orderby=~db.staff_note.created_on,
+        limitby=(0, 100),
+    )
+    return json.dumps([_serialize_staff_note(row) for row in rows])

@@ -278,6 +278,11 @@ class TestSettings:
         from conquest import settings
         assert isinstance(settings.DISCORD_APPEALS_WEBHOOK, str)
         assert isinstance(settings.DISCORD_STAFFAPPS_WEBHOOK, str)
+        assert hasattr(settings, "DISCORD_OAUTH_CLIENT_ID")
+        assert hasattr(settings, "DISCORD_OAUTH_CLIENT_SECRET")
+        assert hasattr(settings, "DISCORD_OAUTH_REDIRECT_URI")
+        assert hasattr(settings, "DISCORD_STAFF_GUILD_ID")
+        assert isinstance(settings.DISCORD_STAFF_ROLE_LEVELS, dict)
 
 
 # ── Controller helper tests ────────────────────────────────────────────────

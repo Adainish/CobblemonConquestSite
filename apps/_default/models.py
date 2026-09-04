@@ -11,6 +11,7 @@ from py4web import Field
 from .common import db
 
 _now = lambda: datetime.datetime.now(datetime.timezone.utc)  # noqa: E731
+_STAFF_ACCESS_LEVELS = ["viewer", "editor", "admin"]
 
 # ── Roadmap ────────────────────────────────────────────────────────────────
 db.define_table(
@@ -67,6 +68,45 @@ db.define_table(
     Field("answer", "text", requires=IS_NOT_EMPTY()),
     Field("category", default="General"),
     Field("sort_order", "integer", default=0),
+    Field("created_on", "datetime", default=_now),
+)
+
+# ── Staff portal ────────────────────────────────────────────────────────────
+db.define_table(
+    "staff_member",
+    Field("discord_id", "string", unique=True, requires=IS_NOT_EMPTY()),
+    Field("discord_username", requires=IS_NOT_EMPTY()),
+    Field("access_level", default="viewer", requires=IS_IN_SET(_STAFF_ACCESS_LEVELS)),
+    Field("discord_roles_json", "text", default="[]"),
+    Field("last_seen_on", "datetime", default=_now),
+    Field("created_on", "datetime", default=_now),
+)
+
+db.define_table(
+    "staff_document",
+    Field("title", requires=IS_NOT_EMPTY()),
+    Field("slug", requires=[IS_NOT_EMPTY(), IS_LENGTH(maxsize=100)]),
+    Field("markdown", "text", requires=IS_NOT_EMPTY()),
+    Field("read_level", default="viewer", requires=IS_IN_SET(_STAFF_ACCESS_LEVELS)),
+    Field("write_level", default="editor", requires=IS_IN_SET(_STAFF_ACCESS_LEVELS)),
+    Field("created_by_discord_id", "string", requires=IS_NOT_EMPTY()),
+    Field("updated_by_discord_id", "string", requires=IS_NOT_EMPTY()),
+    Field("created_on", "datetime", default=_now),
+    Field("updated_on", "datetime", default=_now, update=_now),
+)
+
+db.define_table(
+    "staff_notification",
+    Field("message", "text", requires=IS_NOT_EMPTY()),
+    Field("created_by_discord_id", "string", requires=IS_NOT_EMPTY()),
+    Field("created_on", "datetime", default=_now),
+)
+
+db.define_table(
+    "staff_note",
+    Field("target_discord_id", "string", requires=IS_NOT_EMPTY()),
+    Field("message", "text", requires=IS_NOT_EMPTY()),
+    Field("created_by_discord_id", "string", requires=IS_NOT_EMPTY()),
     Field("created_on", "datetime", default=_now),
 )
 
