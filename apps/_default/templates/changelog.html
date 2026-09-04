@@ -1,0 +1,44 @@
+[[extend 'layout.html']]
+[[block page_title]]Changelog[[end]]
+[[block page_description]]Read every Cobblemon Conquest update in a dated changelog archive with README-style formatting and permalinks.[[end]]
+
+<main>
+  <section class="hero hero-changelog" style="padding:4rem 2rem 3rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">📝</div>
+    <h1 class="hero-title" style="font-size:clamp(1.8rem,4vw,3rem);">Server Changelog</h1>
+    <p class="hero-subtitle">Bug fixes, additions, balance tweaks, and every other dated update.</p>
+  </section>
+
+  <section class="section" aria-labelledby="changelog-heading">
+    <h2 class="section-title" id="changelog-heading">Latest Updates</h2>
+    <p class="section-sub">Each post has its own dated permalink and is rendered like a README for easier browsing.</p>
+    <hr class="divider" />
+
+    [[if entries:]]
+    <div class="changelog-archive" aria-label="Changelog archive links">
+      [[for entry in entries:]]
+      <a class="changelog-archive-link" href="[[=entry['url']]]">[[=entry['published_label']]]</a>
+      [[pass]]
+    </div>
+
+    <div class="changelog-feed">
+      [[for entry in entries:]]
+      <article class="changelog-entry" id="[[=entry['anchor']]]">
+        <div class="changelog-entry-meta">
+          <p class="changelog-date"><time datetime="[[=entry['published_on']]]">[[=entry['published_label']]]</time></p>
+          <a class="changelog-permalink" href="[[=entry['url']]]">Open update</a>
+        </div>
+        <h3 class="changelog-entry-title">[[=entry['title']]]</h3>
+        <div class="changelog-prose">[[=entry['content_html']]]</div>
+      </article>
+      [[pass]]
+    </div>
+    [[else:]]
+    <div style="text-align:center;padding:3rem;color:rgba(245,239,224,.5);">
+      <p style="font-size:1.5rem;margin-bottom:.5rem;">📝</p>
+      <p>No changelog entries have been published yet. Check back after the next update.</p>
+    </div>
+    [[pass]]
+  </section>
+</main>

@@ -243,6 +243,74 @@ class TestRoadmapChangeNotifications:
             interaction.client, "updated", updated_item
         )
 
+    def test_changelog_add_uses_uploaded_readme_content(self, bot_module, monkeypatch):
+        interaction = _make_interaction()
+        created_entry = {
+            "id": 3,
+            "title": "September Update",
+            "published_on": "2026-09-04T21:10:00+00:00",
+            "url": "https://example.com/changelog/2026/09/04/3/september-update",
+        }
+        attachment = mock.MagicMock()
+        attachment.filename = "update.md"
+        attachment.size = 64
+        attachment.read = mock.AsyncMock(return_value=b"# Added\n- Battle tower")
+
+        monkeypatch.setattr(bot_module, "_has_permission", lambda _: True)
+        post_call = mock.AsyncMock(return_value=(200, created_entry))
+        monkeypatch.setattr(bot_module, "_post", post_call)
+
+        asyncio.run(
+            bot_module.changelog_add.callback(
+                interaction,
+                "September Update",
+                "",
+                attachment,
+            )
+        )
+
+        post_call.assert_awaited_once_with(
+            "api/changelog",
+            {"title": "September Update", "content": "# Added\n- Battle tower"},
+        )
+        interaction.followup.send.assert_awaited_once()
+        sent_message = interaction.followup.send.await_args.args[0]
+        assert "✅ Added changelog entry **#3**: September Update" in sent_message
+        assert "https://example.com/changelog/2026/09/04/3/september-update" in sent_message
+
+    def test_changelog_add_requires_content_or_file(self, bot_module, monkeypatch):
+        interaction = _make_interaction()
+
+        monkeypatch.setattr(bot_module, "_has_permission", lambda _: True)
+
+        asyncio.run(bot_module.changelog_add.callback(interaction, "September Update", "", None))
+
+        interaction.followup.send.assert_awaited_once_with(
+            "⚠️ Provide changelog content or upload a README file.",
+            ephemeral=True,
+        )
+
+    def test_changelog_list_includes_published_timestamp(self, bot_module, monkeypatch):
+        interaction = _make_interaction()
+        entries = [
+            {
+                "id": 4,
+                "title": "Balance Update",
+                "published_on": "2026-09-04T21:10:00+00:00",
+                "url": "https://example.com/changelog/2026/09/04/4/balance-update",
+            }
+        ]
+
+        monkeypatch.setattr(bot_module, "_has_permission", lambda _: True)
+        monkeypatch.setattr(bot_module, "_get", mock.AsyncMock(return_value=(200, entries)))
+
+        asyncio.run(bot_module.changelog_list.callback(interaction))
+
+        interaction.followup.send.assert_awaited_once()
+        sent_message = interaction.followup.send.await_args.args[0]
+        assert "Published: 2026-09-04 21:10 UTC" in sent_message
+        assert "https://example.com/changelog/2026/09/04/4/balance-update" in sent_message
+
     def test_roadmap_remove_schedules_change_notification(self, bot_module, monkeypatch):
         interaction = _make_interaction()
         deleted_item = {

@@ -23,6 +23,14 @@ db.define_table(
     Field("created_on", "datetime", default=_now),
 )
 
+# ── Changelog ───────────────────────────────────────────────────────────────
+db.define_table(
+    "changelog_entry",
+    Field("title", requires=IS_NOT_EMPTY()),
+    Field("content", "text", requires=IS_NOT_EMPTY()),
+    Field("created_on", "datetime", default=_now),
+)
+
 # ── Appeals ────────────────────────────────────────────────────────────────
 db.define_table(
     "appeal",

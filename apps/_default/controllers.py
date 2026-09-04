@@ -20,12 +20,15 @@ import html
 import json
 import datetime as _dt
 import logging
+import re
 import smtplib
 import socket
 import struct
 from email.message import EmailMessage
+from urllib.parse import urlparse
 
 import requests
+from yatl.helpers import XML
 
 from py4web import action, redirect, URL, response, request, HTTP
 
@@ -47,6 +50,188 @@ def _ctx(**extra) -> dict:
     )
     base.update(extra)
     return base
+
+
+_MARKDOWN_TOKEN_RE = re.compile(
+    r"(\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_)"
+)
+
+
+def _slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", (value or "").strip().lower()).strip("-")
+    return slug or "update"
+
+
+def _safe_href(value: str) -> str | None:
+    href = (value or "").strip()
+    parsed = urlparse(href)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return href
+
+
+def _render_markdown_inline(text: str) -> str:
+    pieces = []
+    position = 0
+    for match in _MARKDOWN_TOKEN_RE.finditer(text or ""):
+        if match.start() > position:
+            pieces.append(html.escape(text[position:match.start()]))
+        token = match.group(0)
+        if token.startswith("["):
+            link_match = re.match(r"\[([^\]]+)\]\(([^)]+)\)", token)
+            if link_match:
+                label, href = link_match.groups()
+                safe_href = _safe_href(href)
+                if safe_href:
+                    pieces.append(
+                        f'<a href="{html.escape(safe_href, quote=True)}" target="_blank">'
+                        f"{html.escape(label)}</a>"
+                    )
+                else:
+                    pieces.append(html.escape(token))
+            else:
+                pieces.append(html.escape(token))
+        elif token.startswith("`"):
+            pieces.append(f"<code>{html.escape(token[1:-1])}</code>")
+        elif token.startswith(("**", "__")):
+            pieces.append(f"<strong>{html.escape(token[2:-2])}</strong>")
+        else:
+            pieces.append(f"<em>{html.escape(token[1:-1])}</em>")
+        position = match.end()
+    if position < len(text or ""):
+        pieces.append(html.escape((text or "")[position:]))
+    return "".join(pieces)
+
+
+def _render_markdown_readme(content: str) -> str:
+    lines = (content or "").replace("\r\n", "\n").split("\n")
+    rendered = []
+    paragraph = []
+    list_items = []
+    list_tag = None
+    in_code_block = False
+    code_lines = []
+
+    def flush_paragraph():
+        if paragraph:
+            rendered.append(
+                "<p>" + _render_markdown_inline(" ".join(line.strip() for line in paragraph)) + "</p>"
+            )
+            paragraph.clear()
+
+    def flush_list():
+        nonlocal list_tag
+        if list_items and list_tag:
+            items_html = "".join(f"<li>{item}</li>" for item in list_items)
+            rendered.append(f"<{list_tag}>{items_html}</{list_tag}>")
+        list_items.clear()
+        list_tag = None
+
+    def flush_code_block():
+        nonlocal in_code_block
+        if in_code_block:
+            rendered.append(
+                "<pre><code>" + html.escape("\n".join(code_lines)) + "</code></pre>"
+            )
+            code_lines.clear()
+            in_code_block = False
+
+    for raw_line in lines:
+        line = raw_line.rstrip()
+        stripped = line.strip()
+
+        if stripped.startswith("```"):
+            flush_paragraph()
+            flush_list()
+            if in_code_block:
+                flush_code_block()
+            else:
+                in_code_block = True
+                code_lines.clear()
+            continue
+
+        if in_code_block:
+            code_lines.append(raw_line)
+            continue
+
+        if not stripped:
+            flush_paragraph()
+            flush_list()
+            continue
+
+        heading_match = re.match(r"^(#{1,6})\s+(.*)$", stripped)
+        if heading_match:
+            flush_paragraph()
+            flush_list()
+            level = len(heading_match.group(1))
+            rendered.append(
+                f"<h{level}>{_render_markdown_inline(heading_match.group(2).strip())}</h{level}>"
+            )
+            continue
+
+        unordered_match = re.match(r"^\s*[-*]\s+(.*)$", line)
+        if unordered_match:
+            flush_paragraph()
+            if list_tag not in (None, "ul"):
+                flush_list()
+            list_tag = "ul"
+            list_items.append(_render_markdown_inline(unordered_match.group(1).strip()))
+            continue
+
+        ordered_match = re.match(r"^\s*\d+\.\s+(.*)$", line)
+        if ordered_match:
+            flush_paragraph()
+            if list_tag not in (None, "ol"):
+                flush_list()
+            list_tag = "ol"
+            list_items.append(_render_markdown_inline(ordered_match.group(1).strip()))
+            continue
+
+        if stripped in {"---", "***"}:
+            flush_paragraph()
+            flush_list()
+            rendered.append("<div></div>")
+            continue
+
+        flush_list()
+        paragraph.append(raw_line)
+
+    flush_paragraph()
+    flush_list()
+    flush_code_block()
+    return "\n".join(rendered)
+
+
+def _changelog_url(row) -> str:
+    published_on = (row.created_on or _dt.datetime.now(_dt.timezone.utc)).astimezone(
+        _dt.timezone.utc
+    )
+    return URL(
+        f"changelog/{published_on.year:04d}/{published_on.month:02d}/{published_on.day:02d}"
+        f"/{row.id}/{_slugify(row.title)}"
+    )
+
+
+def _serialize_changelog_entry(row) -> dict:
+    published_on = (row.created_on or _dt.datetime.now(_dt.timezone.utc)).astimezone(
+        _dt.timezone.utc
+    )
+    return {
+        "id": row.id,
+        "title": row.title,
+        "content": row.content or "",
+        "published_on": published_on.isoformat(),
+        "published_label": published_on.strftime("%Y-%m-%d %H:%M UTC"),
+        "url": _changelog_url(row),
+        "slug": _slugify(row.title),
+        "anchor": f"changelog-entry-{row.id}",
+    }
+
+
+def _view_changelog_entry(row) -> dict:
+    item = _serialize_changelog_entry(row)
+    item["content_html"] = XML(_render_markdown_readme(item["content"]), sanitize=True)
+    return item
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -383,6 +568,35 @@ def modpack():
 @action.uses("voting.html", T)
 def voting():
     return _ctx(vote_sites=settings.VOTE_SITES)
+
+
+@action("changelog")
+@action.uses("changelog.html", db, T)
+def changelog():
+    rows = db(db.changelog_entry).select(orderby=~db.changelog_entry.created_on | ~db.changelog_entry.id)
+    entries = [_view_changelog_entry(row) for row in rows]
+    return _ctx(entries=entries)
+
+
+@action("changelog/<year:int>/<month:int>/<day:int>/<entry_id:int>/<slug>")
+@action.uses("changelog_entry.html", db, T)
+def changelog_entry(year, month, day, entry_id, slug):
+    row = db(db.changelog_entry.id == entry_id).select().first()
+    if not row:
+        raise HTTP(404, f"Changelog entry {entry_id} not found")
+
+    entry = _view_changelog_entry(row)
+    published_on = (row.created_on or _dt.datetime.now(_dt.timezone.utc)).astimezone(
+        _dt.timezone.utc
+    )
+    if (
+        published_on.year != year
+        or published_on.month != month
+        or published_on.day != day
+        or entry["slug"] != slug
+    ):
+        redirect(entry["url"])
+    return _ctx(entry=entry)
 
 
 @action("roadmap")
@@ -738,6 +952,36 @@ def _serialize_staff_application(row) -> dict:
         "discord_message_id": row.discord_message_id or "",
         "submitted_on": row.submitted_on.isoformat() if row.submitted_on else "",
     }
+
+
+@action("api/changelog", method=["GET"])
+def api_changelog_list():
+    """Return changelog entries as JSON (public, no auth required)."""
+    response.headers["Content-Type"] = "application/json"
+    response.headers["Cache-Control"] = "no-store"
+    rows = db(db.changelog_entry).select(orderby=~db.changelog_entry.created_on | ~db.changelog_entry.id)
+    return json.dumps([_serialize_changelog_entry(row) for row in rows])
+
+
+@action("api/changelog", method=["POST"])
+def api_changelog_create():
+    """Create a changelog entry. Requires X-Roadmap-Secret header."""
+    _check_roadmap_auth()
+    response.headers["Content-Type"] = "application/json"
+
+    body = _read_json_body()
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise HTTP(400, "title is required")
+
+    content = (body.get("content") or "").strip()
+    if not content:
+        raise HTTP(400, "content is required")
+
+    entry_id = db.changelog_entry.insert(title=title, content=content)
+    db.commit()
+    row = db(db.changelog_entry.id == entry_id).select().first()
+    return json.dumps(_serialize_changelog_entry(row))
 
 
 @action("api/roadmap", method=["GET"])
