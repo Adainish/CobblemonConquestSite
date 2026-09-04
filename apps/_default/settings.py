@@ -66,6 +66,16 @@ DISCORD_ROADMAP_ALLOWED_ROLES = ["Admin", "Owner", "Staff Manager"]
 # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
 ROADMAP_API_SECRET = ""
 
+# ── Staff portal auth ───────────────────────────────────────────────────────
+DISCORD_OAUTH_CLIENT_ID = ""
+DISCORD_OAUTH_CLIENT_SECRET = ""
+DISCORD_OAUTH_REDIRECT_URI = ""
+DISCORD_STAFF_GUILD_ID = ""
+# Role ID to access level mapping (viewer/editor/admin)
+DISCORD_STAFF_ROLE_LEVELS = {}
+# Optional role name to access level mapping (case-insensitive)
+DISCORD_STAFF_ROLE_LEVELS_BY_NAME = {}
+
 # Staff roles available for applications (ordered by seniority ascending)
 STAFF_ROLES = ["Helper"]
 

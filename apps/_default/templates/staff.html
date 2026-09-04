@@ -1,0 +1,114 @@
+[[extend 'layout.html']]
+[[block page_title]]Staff Portal[[end]]
+[[block page_description]]Private staff area for Cobblemon Conquest team documentation, updates, and notes.[[end]]
+
+<section class="section" style="max-width:1100px;">
+  <h1 class="section-title">Staff Portal</h1>
+  <p style="text-align:center;opacity:.85;">Logged in as <strong>[[=staff_auth.get('discord_username', '')]]</strong> ([[=staff_auth.get('access_level', '')]]) · <a href="[[=URL('staff_logout')]]">Log out</a></p>
+
+  [[if flash:]]
+  <p style="text-align:center;color:#7ef2b0;">[[=flash]]</p>
+  [[pass]]
+  [[if errors.get('document'):]]
+  <p style="text-align:center;color:#ff9f9f;">[[=errors['document']]]</p>
+  [[pass]]
+  [[if errors.get('notification'):]]
+  <p style="text-align:center;color:#ff9f9f;">[[=errors['notification']]]</p>
+  [[pass]]
+  [[if errors.get('note'):]]
+  <p style="text-align:center;color:#ff9f9f;">[[=errors['note']]]</p>
+  [[pass]]
+
+  <h2 style="margin-top:2rem;">Documentation</h2>
+  [[if can_edit_documents:]]
+  <form method="post" style="display:grid;gap:.5rem;margin-bottom:1.5rem;">
+    <input type="hidden" name="action" value="create_document">
+    <input type="text" name="title" placeholder="Document title" required>
+    <label>Read level
+      <select name="read_level">
+        [[for level in access_levels:]]
+        <option value="[[=level]]">[[=level]]</option>
+        [[pass]]
+      </select>
+    </label>
+    <label>Write level
+      <select name="write_level">
+        [[for level in access_levels:]]
+        <option value="[[=level]]" [[='selected' if level == 'editor' else '']]>[[=level]]</option>
+        [[pass]]
+      </select>
+    </label>
+    <textarea name="markdown" rows="8" placeholder="Markdown content" required></textarea>
+    <button type="submit">Create Document</button>
+  </form>
+  [[pass]]
+
+  [[for document in documents:]]
+  <article style="background:rgba(12,10,8,.45);padding:1rem;border-radius:8px;margin-bottom:1rem;">
+    <h3>[[=document['title']]]</h3>
+    <p style="opacity:.75;font-size:.9rem;">read: [[=document['read_level']]] · write: [[=document['write_level']]]</p>
+    <pre style="white-space:pre-wrap;overflow:auto;">[[=document['markdown']]]</pre>
+    [[if document['id'] in editable_doc_ids:]]
+    <details>
+      <summary>Edit</summary>
+      <form method="post" style="display:grid;gap:.5rem;margin-top:.5rem;">
+        <input type="hidden" name="action" value="update_document">
+        <input type="hidden" name="document_id" value="[[=document['id']]]">
+        <input type="text" name="title" value="[[=document['title']]]" required>
+        <label>Read level
+          <select name="read_level">
+            [[for level in access_levels:]]
+            <option value="[[=level]]" [[='selected' if level == document['read_level'] else '']]>[[=level]]</option>
+            [[pass]]
+          </select>
+        </label>
+        <label>Write level
+          <select name="write_level">
+            [[for level in access_levels:]]
+            <option value="[[=level]]" [[='selected' if level == document['write_level'] else '']]>[[=level]]</option>
+            [[pass]]
+          </select>
+        </label>
+        <textarea name="markdown" rows="8" required>[[=document['markdown']]]</textarea>
+        <button type="submit">Save Changes</button>
+      </form>
+    </details>
+    [[pass]]
+  </article>
+  [[pass]]
+
+  <h2 style="margin-top:2rem;">Administrator Updates</h2>
+  [[if can_post_notifications:]]
+  <form method="post" style="display:grid;gap:.5rem;margin-bottom:1.5rem;">
+    <input type="hidden" name="action" value="create_notification">
+    <textarea name="message" rows="3" placeholder="Post an update to all staff" required></textarea>
+    <button type="submit">Post Update</button>
+  </form>
+  [[pass]]
+  <ul style="padding-left:1.2rem;">
+    [[for item in notifications:]]
+    <li><strong>[[=member_names.get(item['created_by_discord_id'], item['created_by_discord_id'])]]</strong>: [[=item['message']]]</li>
+    [[pass]]
+  </ul>
+
+  <h2 style="margin-top:2rem;">Your Notes</h2>
+  [[if can_create_notes:]]
+  <form method="post" style="display:grid;gap:.5rem;margin-bottom:1.5rem;">
+    <input type="hidden" name="action" value="create_note">
+    <label>Recipient
+      <select name="target_discord_id">
+        [[for member in staff_members:]]
+        <option value="[[=member['discord_id']]]">[[=member['discord_username']]] ([[=member['access_level']]])</option>
+        [[pass]]
+      </select>
+    </label>
+    <textarea name="message" rows="3" placeholder="Add a private note" required></textarea>
+    <button type="submit">Save Note</button>
+  </form>
+  [[pass]]
+  <ul style="padding-left:1.2rem;">
+    [[for item in notes:]]
+    <li><strong>From [[=member_names.get(item['created_by_discord_id'], item['created_by_discord_id'])]]</strong>: [[=item['message']]]</li>
+    [[pass]]
+  </ul>
+</section>

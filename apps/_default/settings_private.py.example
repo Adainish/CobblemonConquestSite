@@ -26,6 +26,16 @@ DISCORD_ROADMAP_ALLOWED_ROLES = ["Admin", "Owner", "Staff Manager"]
 # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
 ROADMAP_API_SECRET = "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
 
+# ── Staff portal OAuth / role access ───────────────────────────────────────
+DISCORD_OAUTH_CLIENT_ID = "YOUR_DISCORD_APP_CLIENT_ID"
+DISCORD_OAUTH_CLIENT_SECRET = "YOUR_DISCORD_APP_CLIENT_SECRET"
+DISCORD_OAUTH_REDIRECT_URI = "https://cobblemonconquest.com/staff/oauth/callback"
+DISCORD_STAFF_GUILD_ID = "YOUR_GUILD_ID"
+# Role IDs mapped to access levels: viewer, editor, admin
+# DISCORD_STAFF_ROLE_LEVELS = {"123456789012345678": "viewer", "234567890123456789": "editor", "345678901234567890": "admin"}
+# Optional fallback using role names (case-insensitive)
+# DISCORD_STAFF_ROLE_LEVELS_BY_NAME = {"Helper": "viewer", "Staff Manager": "editor", "Admin": "admin", "Owner": "admin"}
+
 # Base URL of the website the bot should call (no trailing slash)
 SITE_BASE_URL = "https://cobblemonconquest.com"
 
