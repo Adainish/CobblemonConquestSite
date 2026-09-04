@@ -15,11 +15,15 @@ Slash commands (all require a role listed in config.ALLOWED_ROLES):
                                     – edit an existing FAQ entry
   /faq remove <id>                  – delete a FAQ entry
   /appeals list [status]            – list punishment appeals by status
-  /appeals vote <id> <decision>     – set appeal outcome
-  /appeals force-accept <id>        – force set appeal to approved
+  /appeals vote <id> <decision> [message]
+                                    – set appeal outcome
+  /appeals force-accept <id> [message]
+                                    – force set appeal to approved
   /applications list [status]       – list staff applications by status
-  /applications vote <id> <decision>– set staff application outcome
-  /applications force-accept <id>   – force set application to accepted
+  /applications vote <id> <decision> [message]
+                                    – set staff application outcome
+  /applications force-accept <id> [message]
+                                    – force set application to accepted
 
 Setup:
   1. Copy config.example.py → config.py and fill in your values.
@@ -134,6 +138,14 @@ def _response_item(body: dict | list) -> dict | None:
             if isinstance(item, dict):
                 return item
     return None
+
+
+def _status_update_payload(status: str, message: str = "") -> dict[str, str]:
+    payload = {"status": status}
+    note = message.strip()
+    if note:
+        payload["message"] = note
+    return payload
 
 
 # ── Permission guard ──────────────────────────────────────────────────────
@@ -779,6 +791,7 @@ async def appeals_list(
 @app_commands.describe(
     appeal_id="The appeal ID shown in Discord/webhook messages.",
     decision="Vote decision.",
+    message="Optional message to include in the decision notification.",
 )
 @app_commands.choices(
     decision=[
@@ -791,6 +804,7 @@ async def appeals_vote(
     interaction: discord.Interaction,
     appeal_id: int,
     decision: str,
+    message: str = "",
 ) -> None:
     if not _has_permission(interaction):
         await interaction.response.send_message(
@@ -800,7 +814,10 @@ async def appeals_vote(
 
     await interaction.response.defer(ephemeral=True)
     new_status = _APPEAL_DECISIONS[decision]
-    status_code, body = await _patch(f"api/appeals/{appeal_id}", {"status": new_status})
+    status_code, body = await _patch(
+        f"api/appeals/{appeal_id}",
+        _status_update_payload(new_status, message),
+    )
 
     if status_code == 200:
         await interaction.followup.send(
@@ -821,10 +838,12 @@ async def appeals_vote(
 @appeals_group.command(name="force-accept", description="Force set an appeal outcome to approved.")
 @app_commands.describe(
     appeal_id="The appeal ID shown in Discord/webhook messages.",
+    message="Optional message to include in the approval notification.",
 )
 async def appeals_force_accept(
     interaction: discord.Interaction,
     appeal_id: int,
+    message: str = "",
 ) -> None:
     if not _has_permission(interaction):
         await interaction.response.send_message(
@@ -833,7 +852,10 @@ async def appeals_force_accept(
         return
 
     await interaction.response.defer(ephemeral=True)
-    status_code, body = await _patch(f"api/appeals/{appeal_id}", {"status": "approved"})
+    status_code, body = await _patch(
+        f"api/appeals/{appeal_id}",
+        _status_update_payload("approved", message),
+    )
 
     if status_code == 200:
         await interaction.followup.send(
@@ -923,6 +945,7 @@ async def applications_list(
 @app_commands.describe(
     application_id="The staff application ID shown in webhook messages.",
     decision="Vote decision.",
+    message="Optional message to include in the decision notification.",
 )
 @app_commands.choices(
     decision=[
@@ -935,6 +958,7 @@ async def applications_vote(
     interaction: discord.Interaction,
     application_id: int,
     decision: str,
+    message: str = "",
 ) -> None:
     if not _has_permission(interaction):
         await interaction.response.send_message(
@@ -946,7 +970,7 @@ async def applications_vote(
     new_status = _APPLICATION_DECISIONS[decision]
     status_code, body = await _patch(
         f"api/staff-applications/{application_id}",
-        {"status": new_status},
+        _status_update_payload(new_status, message),
     )
 
     if status_code == 200:
@@ -972,10 +996,12 @@ async def applications_vote(
 )
 @app_commands.describe(
     application_id="The staff application ID shown in webhook messages.",
+    message="Optional message to include in the acceptance notification.",
 )
 async def applications_force_accept(
     interaction: discord.Interaction,
     application_id: int,
+    message: str = "",
 ) -> None:
     if not _has_permission(interaction):
         await interaction.response.send_message(
@@ -986,7 +1012,7 @@ async def applications_force_accept(
     await interaction.response.defer(ephemeral=True)
     status_code, body = await _patch(
         f"api/staff-applications/{application_id}",
-        {"status": "accepted"},
+        _status_update_payload("accepted", message),
     )
 
     if status_code == 200:

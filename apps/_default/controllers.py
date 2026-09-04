@@ -698,6 +698,13 @@ def _read_json_body() -> dict:
     return body
 
 
+def _decision_message_block(message: str) -> str:
+    note = (message or "").strip()
+    if not note:
+        return ""
+    return f"\n\nMessage from staff:\n{note}"
+
+
 def _serialize_appeal(row) -> dict:
     return {
         "id": row.id,
@@ -886,6 +893,7 @@ def api_appeal_update(appeal_id):
 
     body = _read_json_body()
     status = (body.get("status") or "").strip().lower()
+    decision_message = _decision_message_block(body.get("message") or "")
     if status not in _APPEAL_STATUSES:
         raise HTTP(400, f"status must be one of: {', '.join(sorted(_APPEAL_STATUSES))}")
 
@@ -908,6 +916,7 @@ def api_appeal_update(appeal_id):
                     f"**approved**. You are welcome back – see you in-game! "
                     f"If you have any questions, join us on Discord: "
                     f"{settings.DISCORD_INVITE_URL}"
+                    f"{decision_message}"
                 ),
             )
 
@@ -917,7 +926,8 @@ def api_appeal_update(appeal_id):
             (
                 f"Hi {row.minecraft_username},\n\n"
                 f"Your {appeal_label} appeal (ID #{appeal_id}) has been {status}.\n"
-                f"If you have questions, join our Discord: {settings.DISCORD_INVITE_URL}\n\n"
+                f"If you have questions, join our Discord: {settings.DISCORD_INVITE_URL}"
+                f"{decision_message}\n\n"
                 "Regards,\nCobblemon Conquest Staff"
             ),
         )
@@ -956,6 +966,7 @@ def api_staff_application_update(application_id):
 
     body = _read_json_body()
     status = (body.get("status") or "").strip().lower()
+    decision_message = _decision_message_block(body.get("message") or "")
     if status not in _STAFF_APP_STATUSES:
         raise HTTP(400, f"status must be one of: {', '.join(sorted(_STAFF_APP_STATUSES))}")
 
@@ -975,6 +986,7 @@ def api_staff_application_update(application_id):
                     f"Cobblemon Conquest has been **accepted**. "
                     f"Welcome to the team! Please check the Discord server for next steps: "
                     f"{settings.DISCORD_INVITE_URL}"
+                    f"{decision_message}"
                 ),
             )
 
@@ -985,7 +997,8 @@ def api_staff_application_update(application_id):
                 f"Hi {row.minecraft_username},\n\n"
                 f"Your staff application for the {row.role} role (ID #{application_id}) "
                 f"has been {status}.\n"
-                f"If you have questions, join our Discord: {settings.DISCORD_INVITE_URL}\n\n"
+                f"If you have questions, join our Discord: {settings.DISCORD_INVITE_URL}"
+                f"{decision_message}\n\n"
                 "Regards,\nCobblemon Conquest Staff"
             ),
         )
