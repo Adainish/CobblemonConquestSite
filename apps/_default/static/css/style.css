@@ -193,6 +193,7 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
 .hero-home { --hero-image: url("../img/hero-home.png"); }
 .hero-modpack { --hero-image: url("../img/hero-modpack.png"); }
 .hero-voting { --hero-image: url("../img/hero-voting.png"); }
+.hero-changelog { --hero-image: url("../img/hero-roadmap.png"); }
 .hero-roadmap { --hero-image: url("../img/hero-roadmap.png"); }
 .hero-appeals { --hero-image: url("../img/hero-appeals.png"); }
 .hero-appeal-form { --hero-image: url("../img/hero-appeal-form.png"); }
@@ -405,6 +406,87 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: .05em; }
 
 .rm-content h3 { font-family: var(--font-display); font-size: 1.05rem; color: var(--parchment); margin-bottom: .3rem; }
 .rm-content p  { color: rgba(245,239,224,.7); font-size: .9rem; line-height: 1.65; }
+
+/* ── Changelog ── */
+.changelog-archive {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.changelog-archive-link {
+    display: inline-block;
+    padding: .45rem .8rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(245,239,224,.04);
+    font-size: .82rem;
+}
+
+.changelog-feed { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.changelog-entry {
+    background: rgba(245,239,224,.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.changelog-entry-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: .9rem;
+}
+
+.changelog-entry-title {
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    color: var(--gold);
+    margin-bottom: .85rem;
+}
+
+.changelog-date {
+    color: rgba(245,239,224,.72);
+    font-size: .88rem;
+}
+
+.changelog-permalink {
+    font-family: var(--font-display);
+    font-size: .8rem;
+    letter-spacing: .05em;
+}
+
+.changelog-prose {
+    color: rgba(245,239,224,.88);
+    line-height: 1.75;
+}
+
+.changelog-prose > * + * { margin-top: 1rem; }
+.changelog-prose ul,
+.changelog-prose ol { padding-left: 1.5rem; }
+.changelog-prose code {
+    background: rgba(10,7,3,.55);
+    border: 1px solid rgba(201,150,12,.25);
+    border-radius: 4px;
+    padding: .1rem .35rem;
+    font-size: .92em;
+}
+.changelog-prose pre {
+    background: rgba(10,7,3,.65);
+    border: 1px solid rgba(201,150,12,.25);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+}
+.changelog-prose pre code {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
 
 /* ── Vote cards ── */
 .vote-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }

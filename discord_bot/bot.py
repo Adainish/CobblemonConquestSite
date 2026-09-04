@@ -1,7 +1,10 @@
 """
-Cobblemon Conquest – roadmap, FAQ, and moderation management Discord bot.
+Cobblemon Conquest – changelog, roadmap, FAQ, and moderation management Discord bot.
 
 Slash commands (all require a role listed in config.ALLOWED_ROLES):
+  /changelog list                   – list changelog entries
+  /changelog add <title> [content] [readme_file]
+                                    – add a new changelog entry
   /roadmap list                     – list all roadmap items
   /roadmap add <title> [description] [status] [sort_order]
                                     – add a new item
@@ -35,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import datetime as dt
 import logging
 import os
 import tempfile
@@ -178,6 +182,33 @@ def _shorten(value: str, max_len: int = 100) -> str:
     if len(value) <= max_len:
         return value
     return value[: max_len - 1] + "…"
+
+
+def _format_timestamp(value: str) -> str:
+    try:
+        timestamp = dt.datetime.fromisoformat((value or "").replace("Z", "+00:00"))
+    except ValueError:
+        return value
+    return timestamp.astimezone(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+
+async def _read_text_attachment(attachment: discord.Attachment | None) -> str:
+    if attachment is None:
+        return ""
+
+    filename = (attachment.filename or "").lower()
+    if filename and not filename.endswith((".md", ".markdown", ".txt")):
+        raise ValueError("README uploads must be .md, .markdown, or .txt files.")
+
+    size = getattr(attachment, "size", 0) or 0
+    if size > 100_000:
+        raise ValueError("README uploads must be smaller than 100 KB.")
+
+    data = await attachment.read()
+    try:
+        return data.decode("utf-8").strip()
+    except UnicodeDecodeError as exc:
+        raise ValueError("README uploads must be UTF-8 text.") from exc
 
 
 class _SafeFormatDict(dict):
@@ -370,6 +401,101 @@ class RoadmapBot(discord.Client):
 
 
 bot = RoadmapBot()
+
+# ── /changelog command group ──────────────────────────────────────────────
+
+changelog_group = app_commands.Group(
+    name="changelog",
+    description="Publish Cobblemon Conquest changelog entries.",
+)
+
+
+@changelog_group.command(name="list", description="List published changelog entries.")
+async def changelog_list(interaction: discord.Interaction) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use changelog commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    status_code, body = await _get("api/changelog")
+
+    if status_code != 200 or not isinstance(body, list):
+        await interaction.followup.send(
+            f"⚠️ Failed to fetch changelog entries (HTTP {status_code}).", ephemeral=True
+        )
+        return
+
+    if not body:
+        await interaction.followup.send("The changelog is empty.", ephemeral=True)
+        return
+
+    lines = [f"**Changelog Entries** ({len(body)} total)\n"]
+    for item in body:
+        lines.append(
+            f"**#{item['id']}** – {_shorten(item['title'], 80)}\n"
+            f"  Published: {_format_timestamp(item.get('published_on', ''))}\n"
+            f"  {item.get('url', '')}"
+        )
+    await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+
+@changelog_group.command(name="add", description="Add a new changelog entry.")
+@app_commands.describe(
+    title="The changelog title shown on the site.",
+    content="Optional README-style markdown content typed directly into Discord.",
+    readme_file="Optional .md, .markdown, or .txt upload to use as the changelog body.",
+)
+async def changelog_add(
+    interaction: discord.Interaction,
+    title: str,
+    content: str = "",
+    readme_file: discord.Attachment | None = None,
+) -> None:
+    if not _has_permission(interaction):
+        await interaction.response.send_message(
+            "❌ You don't have permission to use changelog commands.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    try:
+        uploaded_content = await _read_text_attachment(readme_file)
+    except ValueError as exc:
+        await interaction.followup.send(f"⚠️ {exc}", ephemeral=True)
+        return
+
+    body_content = uploaded_content or content.strip()
+    if not body_content:
+        await interaction.followup.send(
+            "⚠️ Provide changelog content or upload a README file.", ephemeral=True
+        )
+        return
+
+    status_code, body = await _post(
+        "api/changelog",
+        {"title": title.strip(), "content": body_content},
+    )
+    item = _response_item(body)
+    if status_code == 200 and item:
+        await interaction.followup.send(
+            f"✅ Added changelog entry **#{item['id']}**: {item['title']}\n"
+            f"Published: {_format_timestamp(item.get('published_on', ''))}\n"
+            f"{item.get('url', '')}",
+            ephemeral=True,
+        )
+        return
+
+    error = body.get("message") or body.get("error") or str(body)
+    await interaction.followup.send(
+        f"⚠️ Failed to add changelog entry (HTTP {status_code}): {error}",
+        ephemeral=True,
+    )
+
+
+bot.tree.add_command(changelog_group)
+
 
 # ── /roadmap command group ────────────────────────────────────────────────
 

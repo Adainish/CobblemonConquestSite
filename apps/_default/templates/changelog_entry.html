@@ -1,0 +1,23 @@
+[[extend 'layout.html']]
+[[block page_title]][[=entry['title']]][[end]]
+[[block page_description]]Read the [[=entry['published_label']]] Cobblemon Conquest changelog entry: [[=entry['title']]].[[end]]
+
+<main>
+  <section class="hero hero-changelog" style="padding:4rem 2rem 3rem;">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-kamon" aria-hidden="true">📝</div>
+    <h1 class="hero-title" style="font-size:clamp(1.8rem,4vw,3rem);">[[=entry['title']]]</h1>
+    <p class="hero-subtitle"><time datetime="[[=entry['published_on']]]">[[=entry['published_label']]]</time></p>
+  </section>
+
+  <section class="section" aria-labelledby="changelog-entry-heading">
+    <div style="text-align:center;margin-bottom:2rem;">
+      <a class="btn btn-ghost" href="[[=URL('changelog')]]">Back to all changelogs</a>
+    </div>
+
+    <article class="changelog-entry">
+      <h2 class="changelog-entry-title" id="changelog-entry-heading">[[=entry['title']]]</h2>
+      <div class="changelog-prose">[[=entry['content_html']]]</div>
+    </article>
+  </section>
+</main>

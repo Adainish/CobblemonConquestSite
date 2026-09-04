@@ -39,6 +39,13 @@ def db():
     )
 
     _db.define_table(
+        "changelog_entry",
+        Field("title"),
+        Field("content", "text"),
+        Field("created_on", "datetime", default=_now),
+    )
+
+    _db.define_table(
         "appeal",
         Field("appeal_type"),
         Field("minecraft_username"),
@@ -103,6 +110,18 @@ class TestRoadmap:
 
 
 # ── Appeal tests ──────────────────────────────────────────────────────────
+
+class TestChangelog:
+    def test_insert_markdown_entry(self, db):
+        cid = db.changelog_entry.insert(
+            title="September Update",
+            content="# Added\n- New battle tower",
+        )
+        db.commit()
+        entry = db(db.changelog_entry.id == cid).select().first()
+        assert entry.title == "September Update"
+        assert entry.content.startswith("# Added")
+
 
 class TestAppeals:
     def test_ban_appeal_insert(self, db):
