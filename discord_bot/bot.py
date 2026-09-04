@@ -15,11 +15,15 @@ Slash commands (all require a role listed in config.ALLOWED_ROLES):
                                     – edit an existing FAQ entry
   /faq remove <id>                  – delete a FAQ entry
   /appeals list [status]            – list punishment appeals by status
-  /appeals vote <id> <decision>     – set appeal outcome
-  /appeals force-accept <id>        – force set appeal to approved
+  /appeals vote <id> <decision> [message]
+                                    – set appeal outcome
+  /appeals force-accept <id> [message]
+                                    – force set appeal to approved
   /applications list [status]       – list staff applications by status
-  /applications vote <id> <decision>– set staff application outcome
-  /applications force-accept <id>   – force set application to accepted
+  /applications vote <id> <decision> [message]
+                                    – set staff application outcome
+  /applications force-accept <id> [message]
+                                    – force set application to accepted
 
 Setup:
   1. Copy config.example.py → config.py and fill in your values.
@@ -34,6 +38,7 @@ import contextlib
 import logging
 import os
 import tempfile
+from urllib.parse import urljoin
 
 import aiohttp
 import discord
@@ -79,6 +84,32 @@ async def _parse_response(resp) -> dict | list:
     return {"error": text[:300]}
 
 
+_MUTATING_REDIRECT_STATUSES = {301, 302, 307, 308}
+
+
+async def _request_with_preserved_method(
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    max_redirects: int = 3,
+) -> tuple[int, dict | list]:
+    url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
+    request_kwargs = {"headers": _headers(), "allow_redirects": False}
+    if payload is not None:
+        request_kwargs["json"] = payload
+
+    async with aiohttp.ClientSession() as session:
+        for _ in range(max_redirects + 1):
+            async with session.request(method, url, **request_kwargs) as resp:
+                location = resp.headers.get("Location")
+                if resp.status in _MUTATING_REDIRECT_STATUSES and location:
+                    url = urljoin(str(resp.url), location)
+                    continue
+                return resp.status, await _parse_response(resp)
+
+    return 508, {"error": "Too many redirects"}
+
+
 async def _get(path: str) -> tuple[int, dict | list]:
     """Send a GET request to the site API and return (status_code, body)."""
     url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
@@ -87,25 +118,34 @@ async def _get(path: str) -> tuple[int, dict | list]:
             return resp.status, await _parse_response(resp)
 
 
-async def _post(path: str, payload: dict) -> tuple[int, dict]:
-    url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=payload, headers=_headers()) as resp:
-            return resp.status, await _parse_response(resp)
+async def _post(path: str, payload: dict) -> tuple[int, dict | list]:
+    return await _request_with_preserved_method("POST", path, payload)
 
 
-async def _patch(path: str, payload: dict) -> tuple[int, dict]:
-    url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
-    async with aiohttp.ClientSession() as session:
-        async with session.patch(url, json=payload, headers=_headers()) as resp:
-            return resp.status, await _parse_response(resp)
+async def _patch(path: str, payload: dict) -> tuple[int, dict | list]:
+    return await _request_with_preserved_method("PATCH", path, payload)
 
 
-async def _delete(path: str) -> tuple[int, dict]:
-    url = f"{config.SITE_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
-    async with aiohttp.ClientSession() as session:
-        async with session.delete(url, headers=_headers()) as resp:
-            return resp.status, await _parse_response(resp)
+async def _delete(path: str) -> tuple[int, dict | list]:
+    return await _request_with_preserved_method("DELETE", path)
+
+
+def _response_item(body: dict | list) -> dict | None:
+    if isinstance(body, dict):
+        return body
+    if isinstance(body, list):
+        for item in body:
+            if isinstance(item, dict):
+                return item
+    return None
+
+
+def _status_update_payload(status: str, message: str = "") -> dict[str, str]:
+    payload = {"status": status}
+    note = message.strip()
+    if note:
+        payload["message"] = note
+    return payload
 
 
 # ── Permission guard ──────────────────────────────────────────────────────
@@ -403,11 +443,18 @@ async def roadmap_add(
     status_code, body = await _post("api/roadmap", payload)
 
     if status_code == 200:
+        item = _response_item(body)
+        if not item:
+            await interaction.followup.send(
+                "⚠️ Added roadmap item, but received an unexpected response payload.",
+                ephemeral=True,
+            )
+            return
         await interaction.followup.send(
-            f"✅ Added roadmap item **#{body['id']}**: {body['title']} [{_fmt_status(body['status'])}]",
+            f"✅ Added roadmap item **#{item['id']}**: {item['title']} [{_fmt_status(item['status'])}]",
             ephemeral=True,
         )
-        _schedule_roadmap_change_notification(interaction.client, "added", body)
+        _schedule_roadmap_change_notification(interaction.client, "added", item)
     else:
         error = body.get("message") or body.get("error") or str(body)
         await interaction.followup.send(
@@ -744,6 +791,7 @@ async def appeals_list(
 @app_commands.describe(
     appeal_id="The appeal ID shown in Discord/webhook messages.",
     decision="Vote decision.",
+    message="Optional message to include in the decision notification.",
 )
 @app_commands.choices(
     decision=[
@@ -756,6 +804,7 @@ async def appeals_vote(
     interaction: discord.Interaction,
     appeal_id: int,
     decision: str,
+    message: str = "",
 ) -> None:
     if not _has_permission(interaction):
         await interaction.response.send_message(
@@ -765,7 +814,10 @@ async def appeals_vote(
 
     await interaction.response.defer(ephemeral=True)
     new_status = _APPEAL_DECISIONS[decision]
-    status_code, body = await _patch(f"api/appeals/{appeal_id}", {"status": new_status})
+    status_code, body = await _patch(
+        f"api/appeals/{appeal_id}",
+        _status_update_payload(new_status, message),
+    )
 
     if status_code == 200:
         await interaction.followup.send(
@@ -786,10 +838,12 @@ async def appeals_vote(
 @appeals_group.command(name="force-accept", description="Force set an appeal outcome to approved.")
 @app_commands.describe(
     appeal_id="The appeal ID shown in Discord/webhook messages.",
+    message="Optional message to include in the approval notification.",
 )
 async def appeals_force_accept(
     interaction: discord.Interaction,
     appeal_id: int,
+    message: str = "",
 ) -> None:
     if not _has_permission(interaction):
         await interaction.response.send_message(
@@ -798,7 +852,10 @@ async def appeals_force_accept(
         return
 
     await interaction.response.defer(ephemeral=True)
-    status_code, body = await _patch(f"api/appeals/{appeal_id}", {"status": "approved"})
+    status_code, body = await _patch(
+        f"api/appeals/{appeal_id}",
+        _status_update_payload("approved", message),
+    )
 
     if status_code == 200:
         await interaction.followup.send(
@@ -888,6 +945,7 @@ async def applications_list(
 @app_commands.describe(
     application_id="The staff application ID shown in webhook messages.",
     decision="Vote decision.",
+    message="Optional message to include in the decision notification.",
 )
 @app_commands.choices(
     decision=[
@@ -900,6 +958,7 @@ async def applications_vote(
     interaction: discord.Interaction,
     application_id: int,
     decision: str,
+    message: str = "",
 ) -> None:
     if not _has_permission(interaction):
         await interaction.response.send_message(
@@ -911,7 +970,7 @@ async def applications_vote(
     new_status = _APPLICATION_DECISIONS[decision]
     status_code, body = await _patch(
         f"api/staff-applications/{application_id}",
-        {"status": new_status},
+        _status_update_payload(new_status, message),
     )
 
     if status_code == 200:
@@ -937,10 +996,12 @@ async def applications_vote(
 )
 @app_commands.describe(
     application_id="The staff application ID shown in webhook messages.",
+    message="Optional message to include in the acceptance notification.",
 )
 async def applications_force_accept(
     interaction: discord.Interaction,
     application_id: int,
+    message: str = "",
 ) -> None:
     if not _has_permission(interaction):
         await interaction.response.send_message(
@@ -951,7 +1012,7 @@ async def applications_force_accept(
     await interaction.response.defer(ephemeral=True)
     status_code, body = await _patch(
         f"api/staff-applications/{application_id}",
-        {"status": "accepted"},
+        _status_update_payload("accepted", message),
     )
 
     if status_code == 200:

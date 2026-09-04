@@ -9,7 +9,12 @@ import pytest
 _ROOT = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(_ROOT, "apps"))
 
-from _default.controllers import _send_email, _serialize_appeal, _serialize_staff_application
+from _default.controllers import (
+    _decision_message_block,
+    _send_email,
+    _serialize_appeal,
+    _serialize_staff_application,
+)
 
 
 def test_serialize_appeal_includes_status_and_timestamp():
@@ -32,6 +37,16 @@ def test_serialize_appeal_includes_status_and_timestamp():
     assert payload["status"] == "open"
     assert payload["email"] == ""
     assert payload["submitted_on"] == "2026-01-01T00:00:00+00:00"
+
+
+def test_decision_message_block_formats_staff_note():
+    assert _decision_message_block("  Bring any screenshots you have.  ") == (
+        "\n\nMessage from staff:\nBring any screenshots you have."
+    )
+
+
+def test_decision_message_block_omits_empty_note():
+    assert _decision_message_block("   ") == ""
 
 
 def test_appeal_approved_sends_discord_dm(monkeypatch):
